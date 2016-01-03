@@ -22,6 +22,10 @@
 #include <driverlib/i2c.h>
 #include <driverlib/ssi.h>
 #include <driverlib/uart.h>
+#include <driverlib/gpio.h>
+#include <driverlib/pin_map.h>/*supplies GPIO_PIN_x*/
+#include <inc/hw_memmap.h>/*supplies GPIO_PORTx_BASE*/
+
 #include <ti/drivers/GPIO.h>
 #include <ti/drivers/UART.h>
 
