@@ -70,8 +70,8 @@ int main(void)
     //System_printf("Created Blink Task\n");
 
     /*Initialize+start UART Task*/
-    (void) setup_UART_Task();
-    System_printf("Created UART Task\n");
+    //(void) setup_UART_Task();
+    //System_printf("Created UART Task\n");
 
 
     (void) SetupAltiudeTask(boosterPackAltitude);

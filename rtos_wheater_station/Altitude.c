@@ -34,16 +34,38 @@ static I2C_Handle i2c;
 
 void Altimeter_Init()
 {
-    static I2C_Transaction i2cTransaction;
+    I2C_Transaction i2cTransaction;
 
-    static uint8_t txBuffer[2];
-    static uint8_t rxBuffer[2];
+    uint8_t txBuffer[2];
+    uint8_t rxBuffer[2];
+
+    // read device id from register 0xC
+    i2cTransaction.slaveAddress = MPL3115A2_WRITE_ADDRESS;
+    i2cTransaction.writeBuf = txBuffer;
+    i2cTransaction.writeCount = 1;
+    i2cTransaction.readBuf = rxBuffer;//rxBuffer;
+    i2cTransaction.readCount = 1;
+    i2cTransaction.arg = 0;
+    txBuffer[0] = 0x0C;
+    rxBuffer[0] = 0x0;
+
+    if (I2C_transfer(i2c, &i2cTransaction))
+    {
+        System_printf("Init ok\n");
+    }
+    else
+    {
+        System_printf("I2C Bus fault\n");
+    }
+
+    // start one shot reading
 
     i2cTransaction.slaveAddress = MPL3115A2_WRITE_ADDRESS;
     i2cTransaction.writeBuf = txBuffer;
     i2cTransaction.writeCount = 2;
-    i2cTransaction.readBuf = rxBuffer;
+    i2cTransaction.readBuf = NULL;//rxBuffer;
     i2cTransaction.readCount = 0;
+    i2cTransaction.arg = 0;
     txBuffer[0] = MPL3115A2_CTRL_REG1;
     txBuffer[1] = 0b10111011; //  Altimeter selected, one shot mode, 128x oversampling (512 ms)
 
@@ -77,6 +99,7 @@ void AltitudeFunction(UArg arg0, UArg arg1)
     I2C_Params_init(&i2cParams);
     i2cParams.bitRate = I2C_100kHz;
     i2cParams.transferMode = I2C_MODE_BLOCKING;
+    i2cParams.transferCallbackFxn = NULL;
     if ((BoosterPackType)arg0 == BOOSTER_PACK_1)
     {
         index = Board_I2C0;
