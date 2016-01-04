@@ -11,7 +11,7 @@
 typedef enum BoosterPackEnum {
 	BOOSTER_PACK_1,
 	BOOSTER_PACK_2
-} BooosterPackType;
+} BoosterPackType;
 
 
 

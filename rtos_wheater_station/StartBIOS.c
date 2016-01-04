@@ -43,7 +43,9 @@
 #include <inc/hw_memmap.h>/*supplies GPIO_PORTx_BASE*/
 
 #include "Lauflicht.h"
-#include "Altitude.h"
+//#include "Altitude.h"
+#include "BoosterPack.h"
+extern int SetupAltiudeTask(BoosterPackType boosterPack);
 
 
 int main(void)
@@ -51,29 +53,29 @@ int main(void)
     uint32_t ui32SysClock;
     //static led_descriptor_t led_desc[4];
     static uint32_t wait_ticks = 500;
+    BoosterPackType boosterPackAltitude = BOOSTER_PACK_1;
 
     /* Call board init functions. */
     ui32SysClock = Board_initGeneral(120*1000*1000);
     (void)ui32SysClock; // We don't really need this (yet)
 
+    Board_initGPIO();
     Board_initI2C();
 
     InitializeLed();
 
     /* led1 */
     /*Initialize+start Blink Task*/
-    (void) setup_Blink_Task(&wait_ticks);
-    System_printf("Created Blink Task\n");
+    //(void) setup_Blink_Task(&wait_ticks);
+    //System_printf("Created Blink Task\n");
 
     /*Initialize+start UART Task*/
     (void) setup_UART_Task();
     System_printf("Created UART Task\n");
 
-    /* Initialize+start altitude Click Task*/
-    (void) setup_UART_Task();
-    System_printf("Created UART Task\n");
 
-
+    (void) SetupAltiudeTask(boosterPackAltitude);
+    System_printf("Created Altitude Task\n");
 
     /* SysMin will only print to the console upon calling flush or exit */
 
