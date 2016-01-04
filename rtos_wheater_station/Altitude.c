@@ -39,7 +39,7 @@ void Altimeter_Init()
     uint8_t txBuffer[2];
     uint8_t rxBuffer[2];
 
-    // read device id from register 0xC
+    // read device id from register 0xC Board_Thermo_CLICK
     i2cTransaction.slaveAddress = MPL3115A2_WRITE_ADDRESS;
     i2cTransaction.writeBuf = txBuffer;
     i2cTransaction.writeCount = 1;
