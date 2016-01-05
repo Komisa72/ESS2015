@@ -23,6 +23,8 @@
 #include <driverlib/pin_map.h>
 #include <inc/hw_memmap.h>
 
+#include "BoosterPack.h"
+
 #define BOARD_THERMO_CLICK			 (0x5a)
 
 /*! \fn TempFxn
@@ -41,8 +43,10 @@ void TempFxn(UArg arg0, UArg arg1);
  *  Setup Temp task
  *  Task has highest priority and receives 1kB of stack
  *
+ *  \param boosterPack where thermo click is mounted.
+ *
  *  \return always zero. In case of error the system halts.
  */
-int setup_Temp_Task(void);
+int setup_Temp_Task(BoosterPackType boosterPack);
 
 #endif

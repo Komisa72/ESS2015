@@ -18,6 +18,8 @@
 /* Example/Board Header files */
 #include "Board.h"
 #include "TempTask.h"
+#include "BoosterPack.h"
+#include "ClockTask.h"
 
 /*
  *  ======== TEMP  ========
@@ -33,17 +35,30 @@ void TempFxn(UArg arg0, UArg arg1) {
 	I2C_Handle i2c;
 	I2C_Params i2cParams;
 	I2C_Transaction i2cTransaction;
+	unsigned int index;
+	UInt eventFired;
 
 	/* Create I2C for usage */
 	I2C_Params_init(&i2cParams);
-	i2cParams.bitRate = I2C_100kHz;
-	i2c = I2C_open(Board_I2C_TMP, &i2cParams);
+	i2cParams.bitRate = I2C_100kHz;  // thermo click supports only 100kHz
+	if ((BoosterPackType) arg0 == BOOSTER_PACK_1) {
+		index = Board_I2C0;
+	} else {
+		// BOOSTER_PACK_2
+		index = Board_I2C1;
+	}
+
+	i2c = I2C_open(index, &i2cParams);
 	if (i2c == NULL) {
 		System_abort("Error Initializing I2C\n");
 	} else {
 		System_printf("I2C Initialized!\n");
 	}
-	for (;;) {
+	while (true) {
+
+		// trigger measurement only if event is set
+		eventFired = Event_pend(measureEvent, Event_Id_NONE, MEASURE_THERMO_EVENT, BIOS_WAIT_FOREVER);
+
 		/* Point to the T ambient register and read its 2 bytes */
 		txBuffer[0] = 0x06;
 		i2cTransaction.slaveAddress = BOARD_THERMO_CLICK;
@@ -79,7 +94,7 @@ void TempFxn(UArg arg0, UArg arg1) {
 		}
 		System_flush();
 
-		Task_sleep(1000);
+		//Task_sleep(1000);
 	}
 
 #ifdef DEBUG
@@ -94,13 +109,13 @@ void TempFxn(UArg arg0, UArg arg1) {
 /*
  *  setup task function
  */
-int setup_Temp_Task(void) {
+int setup_Temp_Task(BoosterPackType boosterPack) {
 	/* Setup Task and create it */
 	Task_Params task0Params;
 	Task_Handle task0Handle;
 	Task_Params_init(&task0Params);
 	task0Params.stackSize = 2048;
-	task0Params.arg0 = NULL;
+	task0Params.arg0 = (UArg) boosterPack;
 	task0Params.arg1 = NULL;
 	task0Params.priority = 14;
 	task0Handle = Task_create((Task_FuncPtr) TempFxn, &task0Params, NULL);

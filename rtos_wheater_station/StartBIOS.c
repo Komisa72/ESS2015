@@ -46,6 +46,8 @@
 
 /* Forward declarations */
 extern int SetupAltiudeTask(BoosterPackType boosterPack);
+extern int SetupTransferTask(void);
+extern int SetupClockTask(uint32_t wait_ticks);
 
 /**
  * The main entry point of the program.
@@ -54,6 +56,7 @@ extern int SetupAltiudeTask(BoosterPackType boosterPack);
 int main(void)
 {
     uint32_t ui32SysClock;
+    BoosterPackType boosterPackThermo = BOOSTER_PACK_1;
     BoosterPackType boosterPackAltitude = BOOSTER_PACK_2;
 
     /* Call board init functions. */
@@ -67,8 +70,18 @@ int main(void)
     (void) setup_UART_Task();
     System_printf("Created UART Task\n");
 
+#if USE_THERMO_CLICK
+    /*Call task for temperature*/
+    setup_Temp_Task(boosterPackThermo);
+#endif
+
+#if USE_ALTITUDE_CLICK
     (void) SetupAltiudeTask(boosterPackAltitude);
     System_printf("Created Altitude Task\n");
+#endif
+
+    (void) SetupClockTask(1000);
+    System_printf("Created Clock Task\n");
 
     /* will only print to the console upon calling flush or exit */
     System_printf("Start BIOS\n");
@@ -80,5 +93,4 @@ int main(void)
     return 0;
 
 }
-
 

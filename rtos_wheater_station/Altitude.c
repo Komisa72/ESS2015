@@ -14,7 +14,7 @@
 //#include <xdc/runtime/Memory.h>
 
 /* BIOS Header files */
-//#include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Task.h>
 #include <ti/drivers/I2C.h>
 
@@ -23,6 +23,7 @@
 #include <EK_TM4C1294XL.h>
 #include "BoosterPack.h"
 #include "Altitude.h"
+#include "ClockTask.h"
 
 /* Defines */
 #define ClearBit(reg, bit)       reg &= (~(1<<(bit)))
@@ -325,6 +326,7 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	unsigned int index;
 	I2C_Handle i2c;
 	float altitude;
+	UInt eventFired;
 
 	/* Create I2C for usage */
 	I2C_Params_init(&i2cParams);
@@ -343,15 +345,18 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	} else {
 		System_printf("I2C Initialized!\n");
 	}
+#if USE_ALTITUDE_CLICK
 	MPL3115A2Init(i2c);
 	//MPL3115A2Calibrate(i2c);
+#endif
 
 	while (true) {
+		// trigger measurement only if event is set
+		eventFired = Event_pend(measureEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT, BIOS_WAIT_FOREVER);
 		SwitchToAltimeter(i2c);
 		AltimeterInit(i2c);
 		Task_sleep(550);
 		altitude = AltitudeRead(i2c);
-		Task_sleep(1000);
 	}
 
 #ifdef DEBUG
