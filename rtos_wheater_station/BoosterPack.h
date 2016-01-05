@@ -8,7 +8,8 @@
 #ifndef BOOSTERPACK_H_
 #define BOOSTERPACK_H_
 
-typedef enum BoosterPackEnum {
+typedef enum BoosterPackEnum
+{
 	BOOSTER_PACK_1,
 	BOOSTER_PACK_2
 } BoosterPackType;
