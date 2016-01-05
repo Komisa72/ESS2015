@@ -20,12 +20,8 @@
 #define _OFFH        0x2D    // Altitude Data User Offset Register
 
 /* IIC bus address of Altitude Click */
-#define MPL3115A2_WRITE_ADDRESS  0xC0
-#define MPL3115A2_READ_ADDRESS  0xC1
-
-
+#define BOARD_ALTIUDE_CLICK 0x60
 #define MPL3115A2_CTRL_REG1   0x26    // Control register 1
-
 
 
 #endif /* ALTITUDE_H_ */
