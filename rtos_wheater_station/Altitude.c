@@ -49,7 +49,7 @@ void SwitchToStandby(I2C_Handle i2c);
  * /brief Write 1 byte to the given address.
  * /param i2c handle to open I2C connection.
  * /param register address where to write.
- * /param data_ data to be written
+ * /param value to be written.
  */
 void MPL3115A2_Write(I2C_Handle i2c, uint8_t address, uint8_t value) {
 	I2C_Transaction i2cTransaction;
@@ -74,7 +74,12 @@ void MPL3115A2_Write(I2C_Handle i2c, uint8_t address, uint8_t value) {
 
 }
 
-// Read from MPL3115A2 sensor
+/*
+* /brief Read 1 byte from the given address.
+* /param i2c handle to open I2C connection.
+* /param register address where to read.
+* /return read value.
+*/
 uint8_t MPL3115A2_Read(I2C_Handle i2c, uint8_t address) {
 	I2C_Transaction i2cTransaction;
 	bool flush = false;
@@ -101,9 +106,9 @@ uint8_t MPL3115A2_Read(I2C_Handle i2c, uint8_t address) {
 }
 
 /**
- * Start Altimeter measurement.
- * param i2c handle to open I2C connection
- * return void
+ * /brief Start Barometer measurement.
+ * /param i2c handle to open I2C connection
+ * /return void
  */
 void BarometerInit(I2C_Handle i2c) {
 	I2C_Transaction i2cTransaction;
@@ -136,9 +141,9 @@ void BarometerInit(I2C_Handle i2c) {
 
 
 /**
- * Start Altimeter measurement.
- * param i2c handle to open I2C connection
- * return void
+ * /brief Start Altimeter measurement.
+ * /param i2c handle to open I2C connection
+ * /return void
  */
 void AltimeterInit(I2C_Handle i2c) {
 	I2C_Transaction i2cTransaction;
@@ -170,8 +175,8 @@ void AltimeterInit(I2C_Handle i2c) {
 }
 
 /**
- * // switches device to Standby mode for making changes to control registers
- * param i2c handle to open I2C connection.
+ * /brief switches device to Standby mode for making changes to control registers
+ * /param i2c handle to open I2C connection.
  */
 void SwitchToStandby(I2C_Handle i2c) {
 	uint8_t CTRL_REG_1_DATA;
@@ -220,12 +225,18 @@ void MPL3115A2Calibrate(I2C_Handle i2c) {
 	float sea_pressure;
 	int i;
 	ReadDataType read;
+	int calculate;
 
 	// Altitude offset set to 0
-	MPL3115A2_Write(i2c, _OFFH, 0);
+	//MPL3115A2_Write(i2c, _OFFH, 0);
 
 	// Clear value
 	calibration_pressure = 0;
+
+	uint8_t msb;
+	uint8_t lsb;
+	msb = MPL3115A2_Read(i2c, _BAR_IN_MSB);
+	lsb = MPL3115A2_Read(i2c, _BAR_IN_LSB);
 
 	// Calculate current pressure level
 	for (i = 0; i < 8; i++) {
@@ -240,12 +251,21 @@ void MPL3115A2Calibrate(I2C_Handle i2c) {
 	current_pressure = calibration_pressure / 8;
 
 	// Calculate barometric pressure at mean sea level based on a starting altitude
+	// Temperature 15 °C = 288,15 K, Luftdruck 1013,25 hPa, Temperature gradient 0,65 K per 100 m
 	sea_pressure = current_pressure
 			/ pow(1 - START_ALTITUDE * 0.0000225577, 5.255877);
 
 	// Calibrate the sensor according to the sea level pressure for the current measurement location (2 Pa per LSB) :
-	MPL3115A2_Write(i2c, _BAR_IN_MSB, (uint8_t) (sea_pressure / 2) >> 8);
-	MPL3115A2_Write(i2c, _BAR_IN_LSB, (uint8_t) (sea_pressure / 2) & 0xFF);
+	calculate = (int) sea_pressure;
+	if (sea_pressure > 0)
+	{
+		MPL3115A2_Write(i2c, _BAR_IN_MSB, (uint8_t) ((calculate / 2) >> 8));
+		MPL3115A2_Write(i2c, _BAR_IN_LSB, (uint8_t) ((calculate / 2) & 0xFF));
+	}
+	else
+	{
+		calculate = 0;
+	}
 }
 
 /**
@@ -387,13 +407,14 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	}
 #if USE_ALTITUDE_CLICK
 	MPL3115A2Init(i2c);
-	//MPL3115A2Calibrate(i2c);
+	MPL3115A2Calibrate(i2c);
 #endif
 
 	while (true) {
 		// trigger measurement only if event is set
 		Event_pend(measureAltitudeEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT, BIOS_WAIT_FOREVER);
 		SwitchToBarometer(i2c);
+		Task_sleep(256+30);
 		pressure = PressureRead(i2c);
 		barometer.value = pressure;
 
