@@ -27,13 +27,20 @@ typedef struct TransferMessageStruct {
 
 /* defines */
 #define MEASURE_THERMO_EVENT Event_Id_00
-#define MEASURE_ALTITUDE_EVENT Event_Id_01
+#define MEASURE_ALTITUDE_EVENT Event_Id_00
 
 #define TRANSFER_MESSAGE_EVENT Event_Id_00
 #define TRANSFER_MAILBOX_SIZE 10
 
+// 4 digits precision for temperature
+#define TEMPERATURE_PRECISION 4
+
+#define ALTITUDE_PRECISION 3
+#define PRESSURE_PRECISION 1
+
 /* global */
-extern Event_Handle measureEvent; // trigger measurement of thermo/altitude click
+extern Event_Handle measureAltitudeEvent; // trigger measurement of thermo/altitude click
+extern Event_Handle measureThermoEvent; // trigger measurement of thermo/altitude click
 extern Event_Handle transferEvent; // trigger transfer of read data
 extern Mailbox_Handle transferMailbox; // contains data to be transferred
 

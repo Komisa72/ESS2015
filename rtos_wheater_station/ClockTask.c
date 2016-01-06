@@ -17,21 +17,22 @@
 #include "BoosterPack.h"
 
 /* global */
-Event_Handle measureEvent; // trigger measurement of thermo/altitude click
+Event_Handle measureThermoEvent; // trigger measurement of thermo click
+Event_Handle measureAltitudeEvent; // trigger measurement of altitude click
 Event_Handle transferEvent; // trigger transfer of read data
 Mailbox_Handle transferMailbox; // contains data to be transferred
 
 void ClockFunction(UArg arg0)
 {
-	UInt eventId = 0;
+	UInt eventId;
 #if USE_THERMO_CLICK
-    eventId |= MEASURE_THERMO_EVENT;
+    eventId = MEASURE_THERMO_EVENT;
+	Event_post(measureThermoEvent, eventId);
 #endif
 #if USE_ALTITUDE_CLICK
-    eventId |= MEASURE_ALTITUDE_EVENT;
+    eventId = MEASURE_ALTITUDE_EVENT;
+	Event_post(measureAltitudeEvent, eventId);
 #endif
-
-	Event_post(measureEvent, eventId);
 
 }
 
@@ -45,10 +46,15 @@ int SetupClockTask(uint32_t wait_ticks)
 
 	Error_init(&eb);
 
-	measureEvent = Event_create(NULL, &eb);
-	if (measureEvent == NULL)
+	measureThermoEvent = Event_create(NULL, &eb);
+	if (measureThermoEvent == NULL)
 	{
-		System_abort("Measure event create failed");
+		System_abort("Measure thermo event create failed");
+	}
+	measureAltitudeEvent = Event_create(NULL, &eb);
+	if (measureAltitudeEvent == NULL)
+	{
+		System_abort("Measure altitude event create failed");
 	}
 
 	transferEvent = Event_create(NULL, &eb);

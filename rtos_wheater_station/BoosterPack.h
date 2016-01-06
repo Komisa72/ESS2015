@@ -13,8 +13,8 @@
 #define USE_THERMO_CLICK   1
 
 // compile time switches to turn on / off used hardware
-#define USE_ALTITUDE_CLICK   0
-//#define USE_ALTITUDE_CLICK   1
+//#define USE_ALTITUDE_CLICK   0
+#define USE_ALTITUDE_CLICK   1
 
 
 typedef enum BoosterPackEnum

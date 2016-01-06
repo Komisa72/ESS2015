@@ -326,7 +326,6 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	unsigned int index;
 	I2C_Handle i2c;
 	float altitude;
-	UInt eventFired;
 	TransferMessageType altimeter;
 	TransferMessageType barometer;
 
@@ -358,7 +357,7 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 
 	while (true) {
 		// trigger measurement only if event is set
-		eventFired = Event_pend(measureEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT, BIOS_WAIT_FOREVER);
+		Event_pend(measureAltitudeEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT, BIOS_WAIT_FOREVER);
 		SwitchToAltimeter(i2c);
 		AltimeterInit(i2c);
 		Task_sleep(550);

@@ -36,7 +36,6 @@ void TempFxn(UArg arg0, UArg arg1) {
 	I2C_Params i2cParams;
 	I2C_Transaction i2cTransaction;
 	unsigned int index;
-	UInt eventFired;
 	TransferMessageType temperature;
 
 	temperature.kind = TRANSFER_TEMPERATURE;
@@ -60,7 +59,7 @@ void TempFxn(UArg arg0, UArg arg1) {
 	while (true) {
 
 		// trigger measurement only if event is set
-		eventFired = Event_pend(measureEvent, Event_Id_NONE, MEASURE_THERMO_EVENT, BIOS_WAIT_FOREVER);
+		Event_pend(measureThermoEvent, Event_Id_NONE, MEASURE_THERMO_EVENT, BIOS_WAIT_FOREVER);
 
 		/* Point to the T ambient register and read its 2 bytes */
 		txBuffer[0] = 0x06;
@@ -74,7 +73,7 @@ void TempFxn(UArg arg0, UArg arg1) {
 			/* Extract degrees C from the received data;*/
 			ambtemp = ((rxBuffer[1] << 8) | rxBuffer[0]);
 
-			result = ((ambtemp / 50) - 273.15);
+			result = (((float)ambtemp / 50) - 273.15);
 			System_printf("AmbTemp: %f (C)\n", result);
 
 		} else {
@@ -89,7 +88,7 @@ void TempFxn(UArg arg0, UArg arg1) {
 			/* Extract degrees C from the received data;*/
 			objtemp = ((rxBuffer[1] << 8) | rxBuffer[0]);
 
-			result = ((objtemp / 50) - 273.15);
+			result = (((float)objtemp / 50) - 273.15);
 			System_printf("Objektemperature: %f (C)\n", result);
 
 		} else {

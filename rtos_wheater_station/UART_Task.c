@@ -1,7 +1,10 @@
 /*
- *  ======== UART_Task.c ========
- *  Author: Michael Kramer / Matthias Wenzl
+ * UART_Task.c
+ *
+ *  Created on: 03.01.2016
+ *      Author: amaierhofer
  */
+
 #include <stdbool.h>
 #include <inc/hw_memmap.h>
 
@@ -35,6 +38,7 @@
 
 #include <ctype.h>
 #include <string.h>
+#include <math.h>
 
 #include <Board.h>
 
@@ -42,6 +46,70 @@
 #include "ClockTask.h"
 
 int SetupTransferTask(void);
+
+
+
+// reverses a string 'str' of length 'len'
+void reverse(char *str, int len)
+{
+    int i=0, j=len-1, temp;
+    while (i<j)
+    {
+        temp = str[i];
+        str[i] = str[j];
+        str[j] = temp;
+        i++; j--;
+    }
+}
+
+ // Converts a given integer x to string str[].  d is the number
+ // of digits required in output. If d is more than the number
+ // of digits in x, then 0s are added at the beginning.
+int intToStr(int x, char str[], int d)
+{
+    int i = 0;
+    while (x)
+    {
+        str[i++] = (x%10) + '0';
+        x = x/10;
+    }
+
+    // If number of digits required is more, then
+    // add 0s at the beginning
+    while (i < d)
+        str[i++] = '0';
+
+    reverse(str, i);
+    str[i] = '\0';
+    return i;
+}
+
+// Converts a floating point number to string.
+void ftoa(float n, char *res, int afterpoint)
+{
+    // Extract integer part
+    int ipart = (int)n;
+
+    // Extract floating part
+    float fpart = n - (float)ipart;
+
+    // convert integer part to string
+    int i = intToStr(ipart, res, 0);
+
+    // check for display option after point
+    if (afterpoint != 0)
+    {
+        res[i] = '.';  // add dot
+
+        // Get the value of fraction part upto given no.
+        // of points after dot. The third parameter is needed
+        // to handle cases like 233.007
+        fpart = fpart * pow(10, afterpoint);
+
+        intToStr((int)fpart, res + i + 1, afterpoint);
+    }
+}
+
 
 /*
  *  ======== UART  ========
@@ -127,7 +195,8 @@ void TransferFunction(UArg arg0, UArg arg1) {
 	UART_Handle uart7;
 	UART_Params uart7Params;
 	unsigned char testChar;
-	int i = 0;
+    char result[20+1];
+    int length;
 
     /* Create a UART with data processing off. */
     UART_Params_init(&uart7Params);
@@ -141,8 +210,6 @@ void TransferFunction(UArg arg0, UArg arg1) {
     if (uart7 == NULL) {
         System_abort("Error opening the UART");
     }
-
-	// Todo wait on mailbox and/or event to transfer data
 
 	while (true) {
 
@@ -160,19 +227,22 @@ void TransferFunction(UArg arg0, UArg arg1) {
 			Mailbox_pend(transferMailbox, &message, BIOS_NO_WAIT);
 			switch (message.kind) {
 			case TRANSFER_TEMPERATURE:
-				// todo convert float to whatever format is needed
-				testChar = 'A';
-				testChar += i++;
-				i = i % 10;
-				UART_write(uart7, &testChar, 1);
+				result[0] = 'T';
+			    ftoa(message.value, &result[1], TEMPERATURE_PRECISION);
+			    length = strlen(result) + 1;
+				UART_write(uart7, &result, length);
 				break;
 			case TRANSFER_PRESSURE:
-				testChar = 'P';
-				UART_write(uart7, &testChar, 1);
+				result[0] = 'P';
+			    ftoa(message.value, &result[1], PRESSURE_PRECISION);
+			    length = strlen(result) + 1;
+				UART_write(uart7, &result, length);
 				break;
 			case TRANSFER_ALTITUDE:
-				testChar = 'H';
-				UART_write(uart7, &testChar, 1);
+				result[0] = 'A';
+			    ftoa(message.value, &result[1], ALTITUDE_PRECISION);
+			    length = strlen(result) + 1;
+				UART_write(uart7, &result, length);
 				break;
 			default:
 				// unknown, nothing special
@@ -188,12 +258,9 @@ void TransferFunction(UArg arg0, UArg arg1) {
  *  setup task function
  */
 int SetupTransferTask(void) {
-	//Todo setup uart and send data for displaying on other board
 	Task_Params taskTransferParams;
 	Task_Handle taskTransfer;
 	Error_Block eb;
-	Task_Params taskUARTParams;
-	Task_Handle taskUART;
 
 	Error_init(&eb);
 	Task_Params_init(&taskTransferParams);
