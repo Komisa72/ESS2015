@@ -13,6 +13,9 @@
 
 /* typedef */
 
+/**
+ * /brief Which kind of data will be transferred via mailbox.
+ */
 typedef enum TransferMessageKindEnum {
 	TRANSFER_TEMPERATURE,
 	TRANSFER_PRESSURE,
@@ -20,9 +23,12 @@ typedef enum TransferMessageKindEnum {
 	TRASFER_HEIGHT_ALARM,
 } TransferMessageKindType;
 
+/**
+ * /brief Mailbox entry structure for measured values.
+ */
 typedef struct TransferMessageStruct {
 	TransferMessageKindType kind;
-	float value;
+	float value;      // temperature in °C, pressure in Pa, altitude m
 } TransferMessageType;
 
 /* defines */
@@ -30,17 +36,22 @@ typedef struct TransferMessageStruct {
 #define MEASURE_ALTITUDE_EVENT Event_Id_00
 
 #define TRANSFER_MESSAGE_EVENT Event_Id_00
-#define TRANSFER_MAILBOX_SIZE 10
+#define TRANSFER_MAILBOX_SIZE 10 // max. 10 entries in mailbox
 
-// 4 digits precision for temperature
+// precisions for measured values.
 #define TEMPERATURE_PRECISION 4
-
 #define ALTITUDE_PRECISION 3
 #define PRESSURE_PRECISION 1
 
+// identifiers for transferred data over uart followed by string (converted float)
+#define TRANSFER_TEMPERATURE 'T'
+#define TRANSFER_ALTITUDE 'A'
+#define TRANSFER_PRESSURE 'P'
+
+
 /* global */
-extern Event_Handle measureAltitudeEvent; // trigger measurement of thermo/altitude click
-extern Event_Handle measureThermoEvent; // trigger measurement of thermo/altitude click
+extern Event_Handle measureAltitudeEvent; // trigger measurement of altitude click
+extern Event_Handle measureThermoEvent; // trigger measurement of thermo click
 extern Event_Handle transferEvent; // trigger transfer of read data
 extern Mailbox_Handle transferMailbox; // contains data to be transferred
 

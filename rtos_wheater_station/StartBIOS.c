@@ -48,8 +48,8 @@ extern int SetupClockTask(uint32_t wait_ticks);
 extern int setup_Temp_Task(BoosterPackType boosterPack);
 
 /**
- * The main entry point of the program.
- * return always 0.
+ * /brief The main entry point of the program.
+ * /return Always 0.
  */
 int main(void)
 {
@@ -89,6 +89,5 @@ int main(void)
     BIOS_start();
 
     return 0;
-
 }
 

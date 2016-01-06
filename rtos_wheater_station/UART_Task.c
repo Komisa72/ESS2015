@@ -44,11 +44,14 @@
 #include "BoosterPack.h"
 #include "ClockTask.h"
 
-int SetupTransferTask(void);
+static int SetupTransferTask(void);
 
 
-
-// reverses a string 'str' of length 'len'
+/**
+ * /brief Reverses a string 'str' of length 'len'
+ * /param str string to be reversed.
+ * /param len of string str.
+ */
 static void reverse(char *str, int len)
 {
     int i=0, j=len-1, temp;
@@ -61,9 +64,17 @@ static void reverse(char *str, int len)
     }
 }
 
- // Converts a given integer x to string str[].  d is the number
- // of digits required in output. If d is more than the number
- // of digits in x, then 0s are added at the beginning.
+/**
+ * /brief Converts an integer to string.
+ *
+ * Converts a given integer x to string str[].  d is the number
+ * of digits required in output. If d is more than the number
+ * of digits in x, then 0s are added at the beginning.
+ *
+ * /param x integer to be converted.
+ * /param str where to store the result including terminating '\0'.
+ * /param d minimum output width, filled up with 0.
+ */
 static int intToStr(int x, char str[], int d)
 {
     int i = 0;
@@ -83,7 +94,12 @@ static int intToStr(int x, char str[], int d)
     return i;
 }
 
-// Converts a floating point number to string.
+/**
+ * /brief Converts a floating point number to string.
+ * /param n number to be converted.
+ * /param res where to store the resulting string including terminating 0.
+ * /param afterpoint precision to be shown in result.
+ */
 static void ftoa(float n, char *res, int afterpoint)
 {
     // Extract integer part
@@ -101,8 +117,7 @@ static void ftoa(float n, char *res, int afterpoint)
         res[i] = '.';  // add dot
 
         // Get the value of fraction part upto given no.
-        // of points after dot. The third parameter is needed
-        // to handle cases like 233.007
+        // of points after dot.
         fpart = fpart * pow(10, afterpoint);
 
         intToStr((int)fpart, res + i + 1, afterpoint);
@@ -147,8 +162,13 @@ void UARTFxn(UArg arg0, UArg arg1) {
 
 }
 
-/*
- *  setup task function
+/**
+ *  /brief Setup UART tasks.
+ *
+ *  Setup UART tasks.
+ *  Task has highest priority and receives 1kB of stack.
+ *
+  * /return Always 0. In case of error the system halts.
  */
 int setup_UART_Task(void) {
 	Task_Params taskUARTParams;
@@ -188,6 +208,12 @@ int setup_UART_Task(void) {
 	return (0);
 }
 
+/**
+ * /brief Functions transfers read values from altitude/thermo click via uart7.
+ *
+ * /param arg0 not used.
+ * /param arg1 not used.
+ */
 void TransferFunction(UArg arg0, UArg arg1) {
 	TransferMessageType message;
 	UInt firedEvents;
@@ -210,7 +236,6 @@ void TransferFunction(UArg arg0, UArg arg1) {
     }
 
 	while (true) {
-
 		firedEvents = Event_pend(transferEvent, Event_Id_NONE, /* andMask = 0 */
 		TRANSFER_MESSAGE_EVENT, /* orMask */
 		BIOS_WAIT_FOREVER); /* timeout */
@@ -225,19 +250,19 @@ void TransferFunction(UArg arg0, UArg arg1) {
 			Mailbox_pend(transferMailbox, &message, BIOS_NO_WAIT);
 			switch (message.kind) {
 			case TRANSFER_TEMPERATURE:
-				result[0] = 'T';
+				result[0] = TRANSFER_TEMPERATURE;
 			    ftoa(message.value, &result[1], TEMPERATURE_PRECISION);
 			    length = strlen(result) + 1;
 				UART_write(uart7, &result, length);
 				break;
 			case TRANSFER_PRESSURE:
-				result[0] = 'P';
+				result[0] = TRANSFER_PRESSURE;
 			    ftoa(message.value, &result[1], PRESSURE_PRECISION);
 			    length = strlen(result) + 1;
 				UART_write(uart7, &result, length);
 				break;
 			case TRANSFER_ALTITUDE:
-				result[0] = 'A';
+				result[0] = TRANSFER_ALTITUDE;
 			    ftoa(message.value, &result[1], ALTITUDE_PRECISION);
 			    length = strlen(result) + 1;
 				UART_write(uart7, &result, length);
@@ -248,14 +273,14 @@ void TransferFunction(UArg arg0, UArg arg1) {
 				break;
 			}
 		}
-
 	}
 }
 
 /*
- *  setup task function
+ * /brief Setup task for transferring data via uart.
+ * /return Always 0. In case of error the system halts.
  */
-int SetupTransferTask(void) {
+static int SetupTransferTask(void) {
 	Task_Params taskTransferParams;
 	Task_Handle taskTransfer;
 	Error_Block eb;

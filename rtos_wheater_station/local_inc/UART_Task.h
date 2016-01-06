@@ -33,10 +33,10 @@
 void UARTFxn(UArg arg0, UArg arg1);
 
 /*! \fn setup_UART_Task
- *  \brief Setup UART task
+ *  \brief Setup UART tasks.
  *
- *  Setup UART task
- *  Task has highest priority and receives 1kB of stack
+ *  Setup UART tasks.
+ *  Task has highest priority and receives 1kB of stack.
  *
  *  \return always zero. In case of error the system halts.
 */

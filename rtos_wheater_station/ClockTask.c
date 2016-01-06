@@ -22,7 +22,12 @@ Event_Handle measureAltitudeEvent; // trigger measurement of altitude click
 Event_Handle transferEvent; // trigger transfer of read data
 Mailbox_Handle transferMailbox; // contains data to be transferred
 
-void ClockFunction(UArg arg0)
+/** \fn ClockFunction
+ *  \brief Task function called on every clock tick.
+ *
+ *  \param arg0 not used.
+ */
+static void ClockFunction(UArg arg0)
 {
 	UInt eventId;
 #if USE_THERMO_CLICK
@@ -36,7 +41,16 @@ void ClockFunction(UArg arg0)
 
 }
 
-
+/** \fn setupClockTask
+ *  \brief Setup clock task
+ *
+ *  Setup clock task
+ *  Task has highest priority and receives 1kB of stack
+ *
+ *  \param time to wait for new measurement of temperature, pressure etc.
+ *
+ *  \return always zero. In case of error the system halts.
+ */
 int SetupClockTask(uint32_t wait_ticks)
 {
 	Mailbox_Params mailboxParams;
