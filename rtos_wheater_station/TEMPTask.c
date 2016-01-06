@@ -37,6 +37,9 @@ void TempFxn(UArg arg0, UArg arg1) {
 	I2C_Transaction i2cTransaction;
 	unsigned int index;
 	UInt eventFired;
+	TransferMessageType temperature;
+
+	temperature.kind = TRANSFER_TEMPERATURE;
 
 	/* Create I2C for usage */
 	I2C_Params_init(&i2cParams);
@@ -94,7 +97,9 @@ void TempFxn(UArg arg0, UArg arg1) {
 		}
 		System_flush();
 
-		//Task_sleep(1000);
+		temperature.value = result;
+		/* implicitly posts TRANSFER_MESSAGE_EVENT to transferEvent */
+		Mailbox_post(transferMailbox, &temperature, BIOS_WAIT_FOREVER);
 	}
 
 #ifdef DEBUG
