@@ -179,7 +179,6 @@ void TransferFunction(UArg arg0, UArg arg1) {
 				continue;
 				break;
 			}
-			// TODO transfer data
 		}
 
 	}
