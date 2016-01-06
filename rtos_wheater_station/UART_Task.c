@@ -36,6 +36,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include <Board.h>
+
 #include "BoosterPack.h"
 #include "ClockTask.h"
 
@@ -93,9 +95,14 @@ int setup_UART_Task(void) {
 	GPIOPinConfigure(GPIO_PA1_U0TX);
 	GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
-	//Todo setup uart and send data for displaying on other board
+    /* Enable and configure the peripherals used by the UART7 */
+	SysCtlPeripheralEnable(GPIO_PORTC_BASE);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART7);
+    GPIOPinConfigure(GPIO_PC4_U7RX);
+    GPIOPinConfigure(GPIO_PC5_U7TX);
+    GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 
-	UART_init();
+    UART_init();
 
 	//Setup PortN LED1 activity signaling
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
@@ -117,6 +124,23 @@ int setup_UART_Task(void) {
 void TransferFunction(UArg arg0, UArg arg1) {
 	TransferMessageType message;
 	UInt firedEvents;
+	UART_Handle uart7;
+	UART_Params uart7Params;
+	unsigned char testChar;
+	int i = 0;
+
+    /* Create a UART with data processing off. */
+    UART_Params_init(&uart7Params);
+    uart7Params.writeDataMode = UART_DATA_BINARY;
+    uart7Params.readDataMode = UART_DATA_BINARY;
+    uart7Params.readReturnMode = UART_RETURN_FULL;
+    uart7Params.readEcho = UART_ECHO_OFF;
+    uart7Params.baudRate = 9600;
+    uart7 = UART_open(Board_UART3, &uart7Params);
+
+    if (uart7 == NULL) {
+        System_abort("Error opening the UART");
+    }
 
 	// Todo wait on mailbox and/or event to transfer data
 
@@ -137,10 +161,18 @@ void TransferFunction(UArg arg0, UArg arg1) {
 			switch (message.kind) {
 			case TRANSFER_TEMPERATURE:
 				// todo convert float to whatever format is needed
+				testChar = 'A';
+				testChar += i++;
+				i = i % 10;
+				UART_write(uart7, &testChar, 1);
 				break;
 			case TRANSFER_PRESSURE:
+				testChar = 'P';
+				UART_write(uart7, &testChar, 1);
 				break;
 			case TRANSFER_ALTITUDE:
+				testChar = 'H';
+				UART_write(uart7, &testChar, 1);
 				break;
 			default:
 				// unknown, nothing special
@@ -161,6 +193,8 @@ int SetupTransferTask(void) {
 	Task_Params taskTransferParams;
 	Task_Handle taskTransfer;
 	Error_Block eb;
+	Task_Params taskUARTParams;
+	Task_Handle taskUART;
 
 	Error_init(&eb);
 	Task_Params_init(&taskTransferParams);

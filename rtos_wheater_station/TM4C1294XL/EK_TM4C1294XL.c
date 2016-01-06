@@ -689,15 +689,39 @@ const UARTTiva_HWAttrs uartTivaHWAttrs[EK_TM4C1294XL_UARTCOUNT] = {
         .flowControl = UART_FLOWCONTROL_NONE,
         .ringBufPtr  = uartTivaRingBuffer,
         .ringBufSize = sizeof(uartTivaRingBuffer)
+    },
+	    {/* EK_TM4C1294XL_UART2 */
+        .baseAddr = UART2_BASE,
+        .intNum = INT_UART2,
+        .intPriority = ~0,
+        .flowControl = UART_FLOWCONTROL_NONE,
+        .ringBufPtr  = uartTivaRingBuffer,
+        .ringBufSize = sizeof(uartTivaRingBuffer)
+    },
+	    {/* EK_TM4C1294XL_UART6 */
+        .baseAddr = UART6_BASE,
+        .intNum = INT_UART6,
+        .intPriority = ~0,
+        .flowControl = UART_FLOWCONTROL_NONE,
+        .ringBufPtr  = uartTivaRingBuffer,
+        .ringBufSize = sizeof(uartTivaRingBuffer)
+    },
+	    {/* EK_TM4C1294XL_UART7 */
+        .baseAddr = UART7_BASE,
+        .intNum = INT_UART7,
+        .intPriority = ~0,
+        .flowControl = UART_FLOWCONTROL_NONE,
+        .ringBufPtr  = uartTivaRingBuffer,
+        .ringBufSize = sizeof(uartTivaRingBuffer)
     }
 };
 
 const UART_Config UART_config[] = {
-    {
-        &UARTTiva_fxnTable,
-        &uartTivaObjects[0],
-        &uartTivaHWAttrs[0]
-    },
+// RM 2015-12-26 CHANGED
+    {&UARTTiva_fxnTable, &uartTivaObjects[0], &uartTivaHWAttrs[0]},
+    {&UARTTiva_fxnTable, &uartTivaObjects[1], &uartTivaHWAttrs[1]},
+    {&UARTTiva_fxnTable, &uartTivaObjects[2], &uartTivaHWAttrs[2]},
+    {&UARTTiva_fxnTable, &uartTivaObjects[3], &uartTivaHWAttrs[3]},
     {NULL, NULL, NULL}
 };
 #endif /* TI_DRIVERS_UART_DMA */
@@ -712,7 +736,25 @@ void EK_TM4C1294XL_initUART(void)
     GPIOPinConfigure(GPIO_PA0_U0RX);
     GPIOPinConfigure(GPIO_PA1_U0TX);
     GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+// RM 2015-12-26 BEGIN
+    /* Enable and configure the peripherals used by the UART2 */
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART2);
+    GPIOPinConfigure(GPIO_PD4_U2RX);
+    GPIOPinConfigure(GPIO_PD5_U2TX);
+    GPIOPinTypeUART(GPIO_PORTD_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 
+    /* Enable and configure the peripherals used by the UART6 */
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART6);
+    GPIOPinConfigure(GPIO_PP0_U6RX);
+    GPIOPinConfigure(GPIO_PP1_U6TX);
+    GPIOPinTypeUART(GPIO_PORTP_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    /* Enable and configure the peripherals used by the UART7 */
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART7);
+    GPIOPinConfigure(GPIO_PC4_U7RX);
+    GPIOPinConfigure(GPIO_PC5_U7TX);
+    GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+// RM 2015-12-26 END
     /* Initialize the UART driver */
 #if TI_DRIVERS_UART_DMA
     EK_TM4C1294XL_initDMA();

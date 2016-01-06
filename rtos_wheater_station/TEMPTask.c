@@ -17,7 +17,7 @@
 
 /* Example/Board Header files */
 #include "Board.h"
-#include "TempTask.h"
+#include "TEMPTask.h"
 #include "BoosterPack.h"
 #include "ClockTask.h"
 
