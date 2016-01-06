@@ -37,6 +37,7 @@
 #include <string.h>
 
 #include "BoosterPack.h"
+#include "ClockTask.h"
 
 int SetupTransferTask(void);
 
@@ -114,13 +115,42 @@ int setup_UART_Task(void) {
 }
 
 void TransferFunction(UArg arg0, UArg arg1) {
+	TransferMessageType message;
+	UInt firedEvents;
 
 	// Todo wait on mailbox and/or event to transfer data
 
 	while (true) {
-		Task_sleep(1000);
-	}
 
+		firedEvents = Event_pend(transferEvent, Event_Id_NONE, /* andMask = 0 */
+		TRANSFER_MESSAGE_EVENT, /* orMask */
+		BIOS_WAIT_FOREVER); /* timeout */
+		if (firedEvents & TRANSFER_MESSAGE_EVENT) {
+			/* Get the posted message.
+			 * Mailbox_pend() will not block since Event_pend()
+			 * has guaranteed that a message is available.
+			 * Notice that the special BIOS_NO_WAIT
+			 * parameter tells Mailbox that Event_pend()
+			 * was used to acquire the available message.
+			 */
+			Mailbox_pend(transferMailbox, &message, BIOS_NO_WAIT);
+			switch (message.kind) {
+			case TRANSFER_TEMPERATURE:
+				// todo convert float to whatever format is needed
+				break;
+			case TRANSFER_PRESSURE:
+				break;
+			case TRANSFER_ALTITUDE:
+				break;
+			default:
+				// unknown, nothing special
+				continue;
+				break;
+			}
+			// TODO transfer data
+		}
+
+	}
 }
 
 /*

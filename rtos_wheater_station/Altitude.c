@@ -327,6 +327,12 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	I2C_Handle i2c;
 	float altitude;
 	UInt eventFired;
+	TransferMessageType altimeter;
+	TransferMessageType barometer;
+
+	altimeter.kind = TRANSFER_ALTITUDE;
+	barometer.kind = TRANSFER_PRESSURE;
+	barometer.value = 3;
 
 	/* Create I2C for usage */
 	I2C_Params_init(&i2cParams);
@@ -357,6 +363,13 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 		AltimeterInit(i2c);
 		Task_sleep(550);
 		altitude = AltitudeRead(i2c);
+		altimeter.value = altitude;
+
+		/* implicitly posts TRANSFER_MESSAGE_EVENT to transferEvent */
+		Mailbox_post(transferMailbox, &altimeter, BIOS_WAIT_FOREVER);
+
+		Mailbox_post(transferMailbox, &barometer, BIOS_WAIT_FOREVER);
+
 	}
 
 #ifdef DEBUG

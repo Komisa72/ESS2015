@@ -16,7 +16,10 @@
 #include "ClockTask.h"
 #include "BoosterPack.h"
 
-Event_Handle measureEvent;
+/* global */
+Event_Handle measureEvent; // trigger measurement of thermo/altitude click
+Event_Handle transferEvent; // trigger transfer of read data
+Mailbox_Handle transferMailbox; // contains data to be transferred
 
 void ClockFunction(UArg arg0)
 {
@@ -35,15 +38,31 @@ void ClockFunction(UArg arg0)
 
 int SetupClockTask(uint32_t wait_ticks)
 {
+	Mailbox_Params mailboxParams;
 	Clock_Params clockParams;
 	Clock_Handle myClock;
 	Error_Block eb;
 
 	Error_init(&eb);
+
 	measureEvent = Event_create(NULL, &eb);
 	if (measureEvent == NULL)
 	{
-		System_abort("Event create failed");
+		System_abort("Measure event create failed");
+	}
+
+	transferEvent = Event_create(NULL, &eb);
+	if (transferEvent == NULL) {
+		System_abort("Transfer event create failed");
+	}
+	Mailbox_Params_init(&mailboxParams);
+	mailboxParams.readerEvent = transferEvent;
+	// Assign TRANSFER_MESSAGE_EVENT to Mailbox "not empty" event
+	mailboxParams.readerEventId = TRANSFER_MESSAGE_EVENT;
+	transferMailbox = Mailbox_create(sizeof(TransferMessageType),
+			TRANSFER_MAILBOX_SIZE, &mailboxParams, &eb);
+	if (transferMailbox == NULL) {
+		System_abort("Transfer mailbox create failed");
 	}
 
 	Clock_Params_init(&clockParams);

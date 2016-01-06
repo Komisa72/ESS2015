@@ -9,11 +9,33 @@
 #define CLOCKTASK_H_
 
 #include <ti/sysbios/knl/Event.h>
+#include <ti/sysbios/knl/Mailbox.h>
 
-extern Event_Handle measureEvent;
+/* typedef */
 
+typedef enum TransferMessageKindEnum {
+	TRANSFER_TEMPERATURE,
+	TRANSFER_PRESSURE,
+	TRANSFER_ALTITUDE,
+	TRASFER_HEIGHT_ALARM,
+} TransferMessageKindType;
+
+typedef struct TransferMessageStruct {
+	TransferMessageKindType kind;
+	float value;
+} TransferMessageType;
+
+/* defines */
 #define MEASURE_THERMO_EVENT Event_Id_00
 #define MEASURE_ALTITUDE_EVENT Event_Id_01
+
+#define TRANSFER_MESSAGE_EVENT Event_Id_00
+#define TRANSFER_MAILBOX_SIZE 10
+
+/* global */
+extern Event_Handle measureEvent; // trigger measurement of thermo/altitude click
+extern Event_Handle transferEvent; // trigger transfer of read data
+extern Mailbox_Handle transferMailbox; // contains data to be transferred
 
 /** \fn setupClockTask
  *  \brief Setup clock task
@@ -24,8 +46,7 @@ extern Event_Handle measureEvent;
  *  \param time to wait for new measurement of temperature, pressure etc.
  *
  *  \return always zero. In case of error the system halts.
-*/
+ */
 int SetupClockTask(uint32_t wait_ticks);
-
 
 #endif /* CLOCKTASK_H_ */
