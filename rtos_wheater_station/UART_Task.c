@@ -94,7 +94,7 @@ void ftoa(float n, char *res, int afterpoint)
     float fpart = n - (float)ipart;
 
     // convert integer part to string
-    int i = intToStr(ipart, res, 0);
+    int i = intToStr(ipart, res, 1);
 
     // check for display option after point
     if (afterpoint != 0)
@@ -194,7 +194,6 @@ void TransferFunction(UArg arg0, UArg arg1) {
 	UInt firedEvents;
 	UART_Handle uart7;
 	UART_Params uart7Params;
-	unsigned char testChar;
     char result[20+1];
     int length;
 

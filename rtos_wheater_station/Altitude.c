@@ -105,6 +105,41 @@ uint8_t MPL3115A2_Read(I2C_Handle i2c, uint8_t address) {
  * param i2c handle to open I2C connection
  * return void
  */
+void BarometerInit(I2C_Handle i2c) {
+	I2C_Transaction i2cTransaction;
+	bool flush = false;
+	uint8_t txBuffer[2];
+
+	// start one shot reading
+	i2cTransaction.slaveAddress = BOARD_ALTIUDE_CLICK;
+	i2cTransaction.writeBuf = txBuffer;
+	i2cTransaction.writeCount = 2;
+	i2cTransaction.readBuf = NULL;  //rxBuffer;
+	i2cTransaction.readCount = 0;
+	i2cTransaction.arg = 0;
+	txBuffer[0] = MPL3115A2_CTRL_REG1;
+	txBuffer[1] = 0b00110011; //  Barometer selected, one shot mode, 128x oversampling (512 ms)
+
+	if (!I2C_transfer(i2c, &i2cTransaction)) {
+		System_printf("I2C Bus fault\n");
+		flush = true;
+	}
+	txBuffer[1] = 0b10111001; //  Clear oversampling bit
+	if (!I2C_transfer(i2c, &i2cTransaction)) {
+		System_printf("I2C Bus fault\n");
+		flush = true;
+	}
+	if (flush) {
+		System_flush();
+	}
+}
+
+
+/**
+ * Start Altimeter measurement.
+ * param i2c handle to open I2C connection
+ * return void
+ */
 void AltimeterInit(I2C_Handle i2c) {
 	I2C_Transaction i2cTransaction;
 	bool flush = false;
@@ -118,7 +153,7 @@ void AltimeterInit(I2C_Handle i2c) {
 	i2cTransaction.readCount = 0;
 	i2cTransaction.arg = 0;
 	txBuffer[0] = MPL3115A2_CTRL_REG1;
-	txBuffer[1] = 0b10111011; //  Altimeter selected, one shot mode, 128x oversampling (512 ms)
+	txBuffer[1] = 0b10110011; //  Altimeter selected, one shot mode, 128x oversampling (512 ms)
 
 	if (!I2C_transfer(i2c, &i2cTransaction)) {
 		System_printf("I2C Bus fault\n");
@@ -233,8 +268,8 @@ void SetOSR(I2C_Handle i2c, unsigned char value)
  * Common initialisation.
  */
 void MPL3115A2Init(I2C_Handle i2c) {
-	SetOSR(i2c, 7);  // highest oversampling 512 ms
-	MPL3115A2_Write(i2c, _PT_DATA_CFG, 0x07); // Enable Data Flags in PT_DATA_CFG
+	SetOSR(i2c, 6);  // highest oversampling 256 ms
+	//MPL3115A2_Write(i2c, _PT_DATA_CFG, 0x07); // Enable Data Flags in PT_DATA_CFG
 }
 
 /**
@@ -326,12 +361,12 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	unsigned int index;
 	I2C_Handle i2c;
 	float altitude;
+	float pressure;
 	TransferMessageType altimeter;
 	TransferMessageType barometer;
 
 	altimeter.kind = TRANSFER_ALTITUDE;
 	barometer.kind = TRANSFER_PRESSURE;
-	barometer.value = 3;
 
 	/* Create I2C for usage */
 	I2C_Params_init(&i2cParams);
@@ -358,15 +393,18 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	while (true) {
 		// trigger measurement only if event is set
 		Event_pend(measureAltitudeEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT, BIOS_WAIT_FOREVER);
+		SwitchToBarometer(i2c);
+		pressure = PressureRead(i2c);
+		barometer.value = pressure;
+
 		SwitchToAltimeter(i2c);
 		AltimeterInit(i2c);
-		Task_sleep(550);
+		Task_sleep(256+30);
 		altitude = AltitudeRead(i2c);
 		altimeter.value = altitude;
 
 		/* implicitly posts TRANSFER_MESSAGE_EVENT to transferEvent */
 		Mailbox_post(transferMailbox, &altimeter, BIOS_WAIT_FOREVER);
-
 		Mailbox_post(transferMailbox, &barometer, BIOS_WAIT_FOREVER);
 
 	}
