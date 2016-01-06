@@ -34,8 +34,6 @@
 #include <ctype.h>
 #include <string.h>
 
-
-#include <Blink_Task.h>
 #include <UART_Task.h>
 
 #include <driverlib/gpio.h>
@@ -46,8 +44,8 @@
 
 /* Forward declarations */
 extern int SetupAltiudeTask(BoosterPackType boosterPack);
-extern int SetupTransferTask(void);
 extern int SetupClockTask(uint32_t wait_ticks);
+extern int setup_Temp_Task(BoosterPackType boosterPack);
 
 /**
  * The main entry point of the program.

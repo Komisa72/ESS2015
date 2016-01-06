@@ -86,4 +86,5 @@ int SetupClockTask(uint32_t wait_ticks)
 	{
 		System_abort("Clock create failed");
 	}
+	return 0;
 }
