@@ -253,25 +253,27 @@ void TransferFunction(UArg arg0, UArg arg1) {
 				result[0] = TRANSFER_TEMPERATURE;
 			    ftoa(message.value, &result[1], TEMPERATURE_PRECISION);
 			    length = strlen(result) + 1;
-				UART_write(uart7, &result, length);
+				UART_write(uart7, &result[0], length);
 				break;
 			case TRANSFER_PRESSURE:
 				result[0] = TRANSFER_PRESSURE;
 			    ftoa(message.value, &result[1], PRESSURE_PRECISION);
 			    length = strlen(result) + 1;
-				UART_write(uart7, &result, length);
+				UART_write(uart7, &result[0], length);
 				break;
 			case TRANSFER_ALTITUDE:
 				result[0] = TRANSFER_ALTITUDE;
 			    ftoa(message.value, &result[1], ALTITUDE_PRECISION);
 			    length = strlen(result) + 1;
-				UART_write(uart7, &result, length);
+				UART_write(uart7, &result[0], length);
 				break;
 			default:
 				// unknown, nothing special
 				continue;
 				break;
 			}
+			System_printf("value %s \n", result);
+			System_flush();
 		}
 	}
 }

@@ -31,6 +31,7 @@
 
 
 #define STANDBY_BIT 0
+#define ONE_SHOT_BIT 1
 #define ALT  7 // Altimeter/barometer switch bit
 
 #define STANDBY_BIT_MASK  0xFE // 0b11111110 mask

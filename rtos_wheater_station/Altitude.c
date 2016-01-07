@@ -197,21 +197,31 @@ void SwitchToAltimeter(I2C_Handle i2c) // switch device to altimeter mode
 {
 	uint8_t CTRL_REG_1_DATA;
 	SwitchToStandby(i2c);
-	MPL3115A2_Write(i2c, _PT_DATA_CFG, 0x07); // Enable Data Flags in PT_DATA_CFG
+	//MPL3115A2_Write(i2c, _PT_DATA_CFG, 0x07); // Enable Data Flags in PT_DATA_CFG
 	CTRL_REG_1_DATA = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1); //read control register
 	SetBit(CTRL_REG_1_DATA, ALT);                   // Set Altimeter bit
-	SetBit(CTRL_REG_1_DATA, STANDBY_BIT); // set Standby bit (switch to active mode)
+	//SetBit(CTRL_REG_1_DATA, STANDBY_BIT); // set Standby bit (switch to active mode)
 	MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, CTRL_REG_1_DATA); // write to control register
+}
+
+void OneShotMeasurement(I2C_Handle i2c)
+{
+	uint8_t controlRegister1;
+	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
+	SetBit(controlRegister1, ONE_SHOT_BIT);
+	MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, controlRegister1);
+    ClearBit(controlRegister1, ONE_SHOT_BIT);
+	MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, controlRegister1);
 }
 
 void SwitchToBarometer(I2C_Handle i2c) // switch device to barometer mode
 {
 	unsigned short CTRL_REG_1_DATA;
 	SwitchToStandby(i2c);
-	MPL3115A2_Write(i2c, _PT_DATA_CFG, 0x07); // Enable Data Flags in PT_DATA_CFG
+	//MPL3115A2_Write(i2c, _PT_DATA_CFG, 0x07); // Enable Data Flags in PT_DATA_CFG
 	CTRL_REG_1_DATA = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1); //read control register
 	ClearBit(CTRL_REG_1_DATA, ALT);                 // Reset Altimeter bit
-	SetBit(CTRL_REG_1_DATA, STANDBY_BIT); // set Standby bit (switch to active mode)
+	//SetBit(CTRL_REG_1_DATA, STANDBY_BIT); // set Standby bit (switch to active mode)
 	MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, CTRL_REG_1_DATA); // write to control register
 }
 
@@ -233,17 +243,11 @@ void MPL3115A2Calibrate(I2C_Handle i2c) {
 	// Clear value
 	calibration_pressure = 0;
 
-	uint8_t msb;
-	uint8_t lsb;
-	msb = MPL3115A2_Read(i2c, _BAR_IN_MSB);
-	lsb = MPL3115A2_Read(i2c, _BAR_IN_LSB);
-
 	// Calculate current pressure level
 	for (i = 0; i < 8; i++) {
 		MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, 0b00111011); // One shot mode, 128x oversampling (512 ms)
 		MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, 0b00111001); // Clear oversampling bit
 		Task_sleep(550);                     // Wait for sensor to read pressure
-		//ReadData(i2c, &read); // Read sensor data
 		// Read barometric pressure
 		calibration_pressure = calibration_pressure + PressureRead(i2c);
 	}
@@ -262,10 +266,6 @@ void MPL3115A2Calibrate(I2C_Handle i2c) {
 		MPL3115A2_Write(i2c, _BAR_IN_MSB, (uint8_t) ((calculate / 2) >> 8));
 		MPL3115A2_Write(i2c, _BAR_IN_LSB, (uint8_t) ((calculate / 2) & 0xFF));
 	}
-	else
-	{
-		calculate = 0;
-	}
 }
 
 /**
@@ -275,11 +275,14 @@ void MPL3115A2Calibrate(I2C_Handle i2c) {
 void SetOSR(I2C_Handle i2c, unsigned char value)
 {
    uint8_t control_register;
+   uint8_t mask = ~(7 << 3);
+
    SwitchToStandby(i2c);
    control_register = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);   //read control register
    if(value < 8)
    {
       value <<= 3;
+      control_register &= mask;
       MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, control_register | value);
    }
 }
@@ -288,7 +291,7 @@ void SetOSR(I2C_Handle i2c, unsigned char value)
  * Common initialisation.
  */
 void MPL3115A2Init(I2C_Handle i2c) {
-	SetOSR(i2c, 6);  // highest oversampling 256 ms
+	SetOSR(i2c, 6);  // oversampling 256 ms
 	//MPL3115A2_Write(i2c, _PT_DATA_CFG, 0x07); // Enable Data Flags in PT_DATA_CFG
 }
 
@@ -408,19 +411,22 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 #if USE_ALTITUDE_CLICK
 	MPL3115A2Init(i2c);
 	MPL3115A2Calibrate(i2c);
+	SetOSR(i2c, 7);
 #endif
 
 	while (true) {
 		// trigger measurement only if event is set
 		Event_pend(measureAltitudeEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT, BIOS_WAIT_FOREVER);
 		SwitchToBarometer(i2c);
-		Task_sleep(256+30);
+		OneShotMeasurement(i2c);
+		Task_sleep(550);
 		pressure = PressureRead(i2c);
 		barometer.value = pressure;
 
 		SwitchToAltimeter(i2c);
-		AltimeterInit(i2c);
-		Task_sleep(256+30);
+		OneShotMeasurement(i2c);
+		//AltimeterInit(i2c);
+		Task_sleep(550);
 		altitude = AltitudeRead(i2c);
 		altimeter.value = altitude;
 
