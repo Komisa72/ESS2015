@@ -6,6 +6,7 @@
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
 #include <xdc/runtime/System.h>
+#include <xdc/runtime/Error.h>
 
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
@@ -42,7 +43,7 @@ void TempFxn(UArg arg0, UArg arg1) {
 
 	/* Create I2C for usage */
 	I2C_Params_init(&i2cParams);
-	i2cParams.bitRate = I2C_100kHz;  // thermo click supports only 100kHz
+	i2cParams.bitRate = I2C_100kHz;  // thermo click supports max only 100kHz
 	if ((BoosterPackType) arg0 == BOOSTER_PACK_1) {
 		index = Board_I2C0;
 	} else {
@@ -118,12 +119,15 @@ int setup_Temp_Task(BoosterPackType boosterPack) {
 	/* Setup Task and create it */
 	Task_Params task0Params;
 	Task_Handle task0Handle;
+	Error_Block eb;
+
+	Error_init(&eb);
 	Task_Params_init(&task0Params);
 	task0Params.stackSize = 2048;
 	task0Params.arg0 = (UArg) boosterPack;
 	task0Params.arg1 = NULL;
 	task0Params.priority = 14;
-	task0Handle = Task_create((Task_FuncPtr) TempFxn, &task0Params, NULL);
+	task0Handle = Task_create((Task_FuncPtr) TempFxn, &task0Params, &eb);
 	if (task0Handle == NULL) {
 		System_abort("Error creating task");
 	}
