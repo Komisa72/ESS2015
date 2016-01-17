@@ -47,6 +47,8 @@ extern int SetupAltiudeTask(BoosterPackType boosterPack);
 extern int SetupClockTask(uint32_t wait_ticks);
 extern int setup_Temp_Task(BoosterPackType boosterPack);
 
+
+
 /**
  * /brief The main entry point of the program.
  * /return Always 0.
@@ -54,8 +56,8 @@ extern int setup_Temp_Task(BoosterPackType boosterPack);
 int main(void)
 {
     uint32_t ui32SysClock;
-    BoosterPackType boosterPackThermo = BOOSTER_PACK_1;
-    BoosterPackType boosterPackAltitude = BOOSTER_PACK_2;
+    BoosterPackType boosterPackThermo = BOOSTER_PACK_2;
+    BoosterPackType boosterPackAltitude = BOOSTER_PACK_1;
 
     /* Call board init functions. */
     ui32SysClock = Board_initGeneral(120*1000*1000);
@@ -78,12 +80,15 @@ int main(void)
     System_printf("Created Altitude Task\n");
 #endif
 
-    (void) SetupClockTask(1000);
+    (void) SetupClockTask(1200);
     System_printf("Created Clock Task\n");
 
     /* will only print to the console upon calling flush or exit */
     System_printf("Start BIOS\n");
     System_flush();
+
+
+
 
     /* Start BIOS */
     BIOS_start();
