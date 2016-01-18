@@ -47,8 +47,6 @@ extern int SetupAltiudeTask(BoosterPackType boosterPack);
 extern int SetupClockTask(uint32_t wait_ticks);
 extern int setup_Temp_Task(BoosterPackType boosterPack);
 
-
-
 /**
  * /brief The main entry point of the program.
  * /return Always 0.
@@ -63,7 +61,6 @@ int main(void)
     ui32SysClock = Board_initGeneral(120*1000*1000);
     (void)ui32SysClock; // We don't really need this (yet)
 
-    Board_initGPIO();
     Board_initI2C();
 
     /*Initialize+start UART Task*/
@@ -87,10 +84,6 @@ int main(void)
     System_printf("Start BIOS\n");
     System_flush();
 
-
-
-
-    /* Start BIOS */
     BIOS_start();
 
     return 0;

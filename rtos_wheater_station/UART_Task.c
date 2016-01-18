@@ -28,6 +28,8 @@
 #include <driverlib/pin_map.h>/*supplies GPIO_PIN_x*/
 #include <inc/hw_memmap.h>/*supplies GPIO_PORTx_BASE*/
 
+#include <driverlib/interrupt.h>
+
 #include <ti/drivers/GPIO.h>
 #include <ti/drivers/UART.h>
 
@@ -35,9 +37,13 @@
 #include <Board.h>
 #include <EK_TM4C1294XL.h>
 
+#include <ti/sysbios/hal/hwi.h>
+#include <inc/hw_ints.h>
+
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
 
 #include <Board.h>
 
@@ -45,83 +51,65 @@
 #include "ClockTask.h"
 
 static int SetupTransferTask(void);
-
-
-/**
- * /brief Reverses a string 'str' of length 'len'
- * /param str string to be reversed.
- * /param len of string str.
+/*
+ * /fn ButtonFunction
+ * /brief Interrupt function when User switch 1 is pressed.
+ * /param arg not used.
+ * /return void.
  */
-static void reverse(char *str, int len)
+static void ButtonFunction(UArg arg)
 {
-    int i=0, j=len-1, temp;
-    while (i<j)
-    {
-        temp = str[i];
-        str[i] = str[j];
-        str[j] = temp;
-        i++; j--;
-    }
+	GPIOIntClear(GPIO_PORTJ_BASE, GPIO_PIN_0);
+	/* turn off led 1 */
+    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);
 }
 
-/**
- * /brief Converts an integer to string.
- *
- * Converts a given integer x to string str[].  d is the number
- * of digits required in output. If d is more than the number
- * of digits in x, then 0s are added at the beginning.
- *
- * /param x integer to be converted.
- * /param str where to store the result including terminating '\0'.
- * /param d minimum output width, filled up with 0.
+/* /fn InitializeOutput
+ * /brief Initialize led D1 und USR SW1.
+ * /return void.
  */
-static int intToStr(int x, char str[], int d)
+static void InitializeLedUserSwitch()
 {
-    int i = 0;
-    while (x)
+    uint32_t strength;
+    uint32_t pinType;
+    Hwi_Params buttonHWIParams;
+    Hwi_Handle buttonHwi;
+    Error_Block eb;
+
+
+    // enable port N
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+	// LED2
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_0);
+
+    /* set pin gpio port to output */
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
+    /*configure pad as standard pin with default output current*/
+    GPIOPadConfigGet(GPIO_PORTN_BASE, GPIO_PIN_1, &strength, &pinType);
+    GPIOPadConfigSet(GPIO_PORTN_BASE, GPIO_PIN_1, strength, GPIO_PIN_TYPE_STD);
+
+    /* turn off led 1 */
+    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);
+
+    /* configure switch 1 with pull up as input on GPIO_PIN_0 as pull-up pin */
+    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE, GPIO_PIN_0);
+    GPIOPadConfigGet(GPIO_PORTJ_BASE, GPIO_PIN_0, &strength, &pinType);
+    GPIOPadConfigSet(GPIO_PORTJ_BASE, GPIO_PIN_0, strength, GPIO_PIN_TYPE_STD_WPU);
+
+    Error_init(&eb);
+    Hwi_Params_init(&buttonHWIParams);
+    buttonHWIParams.arg = 0;
+    buttonHWIParams.enableInt = false;
+
+    buttonHwi = Hwi_create(INT_GPIOJ_TM4C129, ButtonFunction, &buttonHWIParams, &eb);
+
+    if (buttonHwi == NULL)
     {
-        str[i++] = (x%10) + '0';
-        x = x/10;
+    	System_abort("Button Hardware interrupt create failed.");
     }
+    Hwi_enableInterrupt(INT_GPIOJ_TM4C129);
+    GPIOIntEnable(GPIO_PORTJ_BASE, GPIO_INT_PIN_0);
 
-    // If number of digits required is more, then
-    // add 0s at the beginning
-    while (i < d)
-        str[i++] = '0';
-
-    reverse(str, i);
-    str[i] = '\0';
-    return i;
-}
-
-/**
- * /brief Converts a floating point number to string.
- * /param n number to be converted.
- * /param res where to store the resulting string including terminating 0.
- * /param afterpoint precision to be shown in result.
- */
-static void ftoa(float n, char *res, int afterpoint)
-{
-    // Extract integer part
-    int ipart = (int)n;
-
-    // Extract floating part
-    float fpart = n - (float)ipart;
-
-    // convert integer part to string
-    int i = intToStr(ipart, res, 1);
-
-    // check for display option after point
-    if (afterpoint != 0)
-    {
-        res[i] = '.';  // add dot
-
-        // Get the value of fraction part upto given no.
-        // of points after dot.
-        fpart = fpart * pow(10, afterpoint);
-
-        intToStr((int)fpart, res + i + 1, afterpoint);
-    }
 }
 
 
@@ -156,7 +144,7 @@ void UARTFxn(UArg arg0, UArg arg1) {
 		UART_read(uart, &input, 1);
 		GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 1);
 		UART_write(uart, &input, 1); //Remove this line to stop echoing!
-		Task_sleep(5);
+		Task_sleep(20);
 		GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 0);
 	}
 
@@ -168,7 +156,7 @@ void UARTFxn(UArg arg0, UArg arg1) {
  *  Setup UART tasks.
  *  Task has highest priority and receives 1kB of stack.
  *
-  * /return Always 0. In case of error the system halts.
+ * /return Always 0. In case of error the system halts.
  */
 int setup_UART_Task(void) {
 	Task_Params taskUARTParams;
@@ -182,27 +170,25 @@ int setup_UART_Task(void) {
 	GPIOPinConfigure(GPIO_PA1_U0TX);
 	GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
-    /* Enable and configure the peripherals used by the UART7 */
+	/* Enable and configure the peripherals used by the UART7 */
 	SysCtlPeripheralEnable(GPIO_PORTC_BASE);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART7);
-    GPIOPinConfigure(GPIO_PC4_U7RX);
-    GPIOPinConfigure(GPIO_PC5_U7TX);
-    GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+	GPIOPinConfigure(GPIO_PC4_U7RX);
+	GPIOPinConfigure(GPIO_PC5_U7TX);
+	GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 
-    UART_init();
+	UART_init();
 
-	//Setup PortN LED1 activity signaling
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
-	GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_0);
-
+	InitializeLedUserSwitch();
 	Error_init(&eb);
 	Task_Params_init(&taskUARTParams);
-	taskUARTParams.stackSize = 1024;/*stack in bytes*/
-	taskUARTParams.priority = 15;/*15 is default 16 is highest priority -> see RTOS configuration*/
+	taskUARTParams.stackSize = 1024;
+	taskUARTParams.priority = 15;
 	taskUART = Task_create((Task_FuncPtr) UARTFxn, &taskUARTParams, &eb);
 	if (taskUART == NULL) {
 		System_abort("TaskUART create failed");
 	}
+
 	SetupTransferTask();
 
 	return (0);
@@ -219,61 +205,77 @@ void TransferFunction(UArg arg0, UArg arg1) {
 	UInt firedEvents;
 	UART_Handle uart7;
 	UART_Params uart7Params;
-    char result[20+1];
-    int length;
+	char result[20 + 1];
+	int length;
+	int precision;
+	int width;
+	float value;
 
-    /* Create a UART with data processing off. */
-    UART_Params_init(&uart7Params);
-    uart7Params.writeDataMode = UART_DATA_BINARY;
-    uart7Params.readDataMode = UART_DATA_BINARY;
-    uart7Params.readReturnMode = UART_RETURN_FULL;
-    uart7Params.readEcho = UART_ECHO_OFF;
-    uart7Params.baudRate = 9600;
-    uart7 = UART_open(Board_UART3, &uart7Params);
+	UART_Params_init(&uart7Params);
+	uart7Params.writeDataMode = UART_DATA_BINARY;
+	uart7Params.readDataMode = UART_DATA_BINARY;
+	uart7Params.readReturnMode = UART_RETURN_FULL;
+	uart7Params.readEcho = UART_ECHO_OFF;
+	uart7Params.baudRate = 9600;
+	uart7 = UART_open(Board_UART3, &uart7Params);
 
-    if (uart7 == NULL) {
-        System_abort("Error opening the UART");
-    }
+	if (uart7 == NULL) {
+		System_abort("Error opening the UART");
+	}
 
 	while (true) {
-		firedEvents = Event_pend(transferEvent, Event_Id_NONE, /* andMask = 0 */
-		TRANSFER_MESSAGE_EVENT, /* orMask */
-		BIOS_WAIT_FOREVER); /* timeout */
+		firedEvents = Event_pend(transferEvent, Event_Id_NONE,
+				TRANSFER_MESSAGE_EVENT,
+				BIOS_WAIT_FOREVER);
 		if (firedEvents & TRANSFER_MESSAGE_EVENT) {
 			/* Get the posted message.
 			 * Mailbox_pend() will not block since Event_pend()
 			 * has guaranteed that a message is available.
-			 * Notice that the special BIOS_NO_WAIT
-			 * parameter tells Mailbox that Event_pend()
-			 * was used to acquire the available message.
 			 */
 			Mailbox_pend(transferMailbox, &message, BIOS_NO_WAIT);
 			switch (message.kind) {
 			case TRANSFER_TEMPERATURE:
-				result[0] = TRANSFER_TEMPERATURE;
-			    ftoa(message.value, &result[1], TEMPERATURE_PRECISION);
-			    length = strlen(result) + 1;
-				UART_write(uart7, &result[0], length);
+				result[0] = ID_TEMPERATURE;
+				width = 1;
+				precision = TEMPERATURE_PRECISION;
+				if (TEMPERATURE_PRECISION > 0)
+				{
+					width = 3;
+				}
+				value = message.value;
 				break;
 			case TRANSFER_PRESSURE:
-				result[0] = TRANSFER_PRESSURE;
-			    ftoa(message.value, &result[1], PRESSURE_PRECISION);
-			    length = strlen(result) + 1;
-				UART_write(uart7, &result[0], length);
+				result[0] = ID_PRESSURE;
+                value = message.value / 100 ; /* hPa */
+				width = 1;
+				precision = PRESSURE_PRECISION;
+				if (PRESSURE_PRECISION > 0)
+				{
+					width = 3;
+				}
 				break;
 			case TRANSFER_ALTITUDE:
-				result[0] = TRANSFER_ALTITUDE;
-			    ftoa(message.value, &result[1], ALTITUDE_PRECISION);
-			    length = strlen(result) + 1;
-				UART_write(uart7, &result[0], length);
+				result[0] = ID_ALTITUDE;
+				value = message.value;
+				precision = ALTITUDE_PRECISION;
+				if (ALTITUDE_PRECISION > 0)
+				{
+					width = 3;
+				}
 				break;
 			default:
+				System_printf("Error TransferFunction: Received unknown message %d.\n", message.kind);
+				System_flush();
 				// unknown, nothing special
-				continue;
-				break;
+				continue; /* no break, would be unreachable code */
 			}
-			System_printf("value %s \n", result);
+			(void)snprintf (&result[1], 20, "%*.*f", width, precision, value);
+			length = strlen(result) + 1;
+			UART_write(uart7, &result[0], length);
+#ifdef DEBUG
+			System_printf("%s transferred.\n", result);
 			System_flush();
+#endif // DEBUG
 		}
 	}
 }
@@ -289,8 +291,8 @@ static int SetupTransferTask(void) {
 
 	Error_init(&eb);
 	Task_Params_init(&taskTransferParams);
-	taskTransferParams.stackSize = 1024;/*stack in bytes*/
-	taskTransferParams.priority = 15;/*15 is default 16 is highest priority -> see RTOS configuration*/
+	taskTransferParams.stackSize = 1024;
+	taskTransferParams.priority = 15;
 	taskTransfer = Task_create((Task_FuncPtr) TransferFunction,
 			&taskTransferParams, &eb);
 	if (taskTransfer == NULL) {

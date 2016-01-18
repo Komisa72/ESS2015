@@ -16,6 +16,10 @@
 #include "ClockTask.h"
 #include "BoosterPack.h"
 
+/* defines */
+/* minimum time between triggering a new measurement in 1/1000 s*/
+#define MINIMUM_SAMPLING_TIME  1000
+
 /* global */
 Event_Handle measureThermoEvent; // trigger measurement of thermo click
 Event_Handle measureAltitudeEvent; // trigger measurement of altitude click
@@ -44,7 +48,6 @@ static void ClockFunction(UArg arg0)
 /** \fn setupClockTask
  *  \brief Setup clock task
  *
- *  Setup clock task
  *  Task has highest priority and receives 1kB of stack
  *
  *  \param time to wait for new measurement of temperature, pressure etc.
@@ -86,9 +89,9 @@ int SetupClockTask(uint32_t wait_ticks)
 	}
 
 	Clock_Params_init(&clockParams);
-	if (wait_ticks < 1000)
+	if (wait_ticks < MINIMUM_SAMPLING_TIME)
 	{
-		wait_ticks = 1000;  // at minimum 1s
+		wait_ticks = MINIMUM_SAMPLING_TIME;
 	}
 
 	clockParams.period = wait_ticks;

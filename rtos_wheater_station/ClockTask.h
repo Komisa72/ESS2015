@@ -20,7 +20,7 @@ typedef enum TransferMessageKindEnum {
 	TRANSFER_TEMPERATURE,
 	TRANSFER_PRESSURE,
 	TRANSFER_ALTITUDE,
-	TRASFER_HEIGHT_ALARM,
+	TRANSFER_HEIGHT_ALARM,
 } TransferMessageKindType;
 
 /**
@@ -39,14 +39,14 @@ typedef struct TransferMessageStruct {
 #define TRANSFER_MAILBOX_SIZE 10 // max. 10 entries in mailbox
 
 // precisions for measured values.
-#define TEMPERATURE_PRECISION 4
+#define TEMPERATURE_PRECISION 2
 #define ALTITUDE_PRECISION 3
 #define PRESSURE_PRECISION 1
 
 // identifiers for transferred data over uart followed by string (converted float)
-#define TRANSFER_TEMPERATURE 'T'
-#define TRANSFER_ALTITUDE 'A'
-#define TRANSFER_PRESSURE 'P'
+#define ID_TEMPERATURE 'T'
+#define ID_ALTITUDE 'A'
+#define ID_PRESSURE 'P'
 
 
 /* global */

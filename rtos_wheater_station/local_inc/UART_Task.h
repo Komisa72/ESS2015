@@ -4,7 +4,7 @@
     \author Michael Kramer
 
 
-    UART Task example.
+    UART Task example and wheater station uart.
 
 */
 
@@ -18,8 +18,6 @@
 
 #ifndef UART_TASK_H_
 #define UART_TASK_H_
-
-
 
 
 /*! \fn UARTFxn
