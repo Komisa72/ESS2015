@@ -50,8 +50,9 @@
 #include "BoosterPack.h"
 #include "ClockTask.h"
 
-static int SetupTransferTask(void);
-/*
+static void TransferFunction(UArg arg0, UArg arg1);
+
+/**
  * /fn ButtonFunction
  * /brief Interrupt function when User switch 1 is pressed.
  * /param arg not used.
@@ -64,7 +65,8 @@ static void ButtonFunction(UArg arg)
     GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);
 }
 
-/* /fn InitializeOutput
+/**
+ * /fn InitializeLedUserSwitch
  * /brief Initialize led D1 und USR SW1.
  * /return void.
  */
@@ -75,7 +77,6 @@ static void InitializeLedUserSwitch()
     Hwi_Params buttonHWIParams;
     Hwi_Handle buttonHwi;
     Error_Block eb;
-
 
     // enable port N
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
@@ -112,63 +113,18 @@ static void InitializeLedUserSwitch()
 
 }
 
-
-/*
- *  ======== UART  ========
- *  Echo Characters recieved and show reception on Port N Led 0
- */
-void UARTFxn(UArg arg0, UArg arg1) {
-
-	char input;
-	UART_Handle uart;
-	UART_Params uartParams;
-	const char echoPrompt[] = "\fEchoing characters:\r\n";
-
-	/* Create a UART with data processing off. */
-	UART_Params_init(&uartParams);
-	uartParams.writeDataMode = UART_DATA_BINARY;
-	uartParams.readDataMode = UART_DATA_BINARY;
-	uartParams.readReturnMode = UART_RETURN_FULL;
-	uartParams.readEcho = UART_ECHO_OFF;
-	uartParams.baudRate = 9600;
-	uart = UART_open(Board_UART0, &uartParams);
-
-	if (uart == NULL) {
-		System_abort("Error opening the UART");
-	}
-
-	UART_write(uart, echoPrompt, sizeof(echoPrompt));
-
-	/* Loop forever echoing */
-	while (1) {
-		UART_read(uart, &input, 1);
-		GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 1);
-		UART_write(uart, &input, 1); //Remove this line to stop echoing!
-		Task_sleep(20);
-		GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 0);
-	}
-
-}
-
 /**
- *  /brief Setup UART tasks.
+ * /fn SetupUartTask
+ * /brief Setup UART tasks.
  *
- *  Setup UART tasks.
- *  Task has highest priority and receives 1kB of stack.
+ * Task has priority 15 and receives 1kB of stack.
  *
  * /return Always 0. In case of error the system halts.
  */
-int setup_UART_Task(void) {
-	Task_Params taskUARTParams;
-	Task_Handle taskUART;
+int SetupUartTask(void) {
+	Task_Params taskTransferParams;
+	Task_Handle taskTransfer;
 	Error_Block eb;
-
-	/* Enable and configure the peripherals used by the UART0 */
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-	GPIOPinConfigure(GPIO_PA0_U0RX);
-	GPIOPinConfigure(GPIO_PA1_U0TX);
-	GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
 	/* Enable and configure the peripherals used by the UART7 */
 	SysCtlPeripheralEnable(GPIO_PORTC_BASE);
@@ -180,32 +136,34 @@ int setup_UART_Task(void) {
 	UART_init();
 
 	InitializeLedUserSwitch();
-	Error_init(&eb);
-	Task_Params_init(&taskUARTParams);
-	taskUARTParams.stackSize = 1024;
-	taskUARTParams.priority = 15;
-	taskUART = Task_create((Task_FuncPtr) UARTFxn, &taskUARTParams, &eb);
-	if (taskUART == NULL) {
-		System_abort("TaskUART create failed");
-	}
 
-	SetupTransferTask();
+	Error_init(&eb);
+	Task_Params_init(&taskTransferParams);
+	taskTransferParams.stackSize = 1024;
+	taskTransferParams.priority = 15;
+	taskTransfer = Task_create((Task_FuncPtr) TransferFunction,
+			&taskTransferParams, &eb);
+	if (taskTransfer == NULL) {
+		System_abort("UART task create failed");
+	}
 
 	return (0);
 }
 
 /**
+ * /fn TransferFunction
  * /brief Functions transfers read values from altitude/thermo click via uart7.
  *
  * /param arg0 not used.
  * /param arg1 not used.
+ * /return void.
  */
-void TransferFunction(UArg arg0, UArg arg1) {
+static void TransferFunction(UArg arg0, UArg arg1) {
 	TransferMessageType message;
 	UInt firedEvents;
 	UART_Handle uart7;
 	UART_Params uart7Params;
-	char result[20 + 1];
+	char result[20 + 1]; // +1 for \0, must be transferred
 	int length;
 	int precision;
 	int width;
@@ -228,10 +186,9 @@ void TransferFunction(UArg arg0, UArg arg1) {
 				TRANSFER_MESSAGE_EVENT,
 				BIOS_WAIT_FOREVER);
 		if (firedEvents & TRANSFER_MESSAGE_EVENT) {
-			/* Get the posted message.
-			 * Mailbox_pend() will not block since Event_pend()
-			 * has guaranteed that a message is available.
-			 */
+			// Get the posted message.
+			// Mailbox_pend() will not block since Event_pend()
+			// has guaranteed that a message is available.
 			Mailbox_pend(transferMailbox, &message, BIOS_NO_WAIT);
 			switch (message.kind) {
 			case TRANSFER_TEMPERATURE:
@@ -264,7 +221,8 @@ void TransferFunction(UArg arg0, UArg arg1) {
 				}
 				break;
 			default:
-				System_printf("Error TransferFunction: Received unknown message %d.\n", message.kind);
+				System_printf("Error TransferFunction: Received unknown message %d.\n",
+						message.kind);
 				System_flush();
 				// unknown, nothing special
 				continue; /* no break, would be unreachable code */
@@ -278,27 +236,5 @@ void TransferFunction(UArg arg0, UArg arg1) {
 #endif // DEBUG
 		}
 	}
-}
-
-/*
- * /brief Setup task for transferring data via uart.
- * /return Always 0. In case of error the system halts.
- */
-static int SetupTransferTask(void) {
-	Task_Params taskTransferParams;
-	Task_Handle taskTransfer;
-	Error_Block eb;
-
-	Error_init(&eb);
-	Task_Params_init(&taskTransferParams);
-	taskTransferParams.stackSize = 1024;
-	taskTransferParams.priority = 15;
-	taskTransfer = Task_create((Task_FuncPtr) TransferFunction,
-			&taskTransferParams, &eb);
-	if (taskTransfer == NULL) {
-		System_abort("TaskTransfer create failed");
-	}
-	return 0;
-
 }
 

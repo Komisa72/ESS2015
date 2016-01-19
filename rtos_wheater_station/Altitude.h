@@ -8,24 +8,21 @@
 #ifndef ALTITUDE_H_
 #define ALTITUDE_H_
 
-// MPL3115A2 register definitions
 
-#define MPL3115A2_OUT_T_MSB   0x04    // Temperature data (MSB)
-#define MPL3115A2_OUT_T_LSB   0x05    // Temperature data (LSB)
-#define _PT_DATA_CFG 0x13    // Data event flag configuration
-#define MPL3115A2_BAR_IN_MSB  0x14    // Barometric input for Altitude calculation
-#define MPL3115A2_BAR_IN_LSB  0x15    // Barometric input for Altitude calculation
-#define MPL3115A2_OFFH        0x2D    // Altitude Data User Offset Register
-
-/* I2C bus address of Altitude Click */
+// I2C bus address of Altitude Click
 #define BOARD_ALTIUDE_CLICK 0x60
 
-/* register addresses */
+// MPL3115A2 register definitions
+#define MPL3115A2_DR_STATUS   0x00    // Status register
 #define MPL3115A2_OUT_P_MSB   0x01    // Pressure/Altitude data (MSB)
 #define MPL3115A2_OUT_P_CSB   0x02    // Pressure/Altitude data (middle)
 #define MPL3115A2_OUT_P_LSB   0x03    // Pressure/Altitude data (LSB)
+#define MPL3115A2_OUT_T_MSB   0x04    // Temperature data (MSB)
+#define MPL3115A2_OUT_T_LSB   0x05    // Temperature data (LSB)
 #define MPL3115A2_INT_SOURCE  0x12    // Int source register
 #define MPL3115A2_PT_DATA_CFG 0x13    // Event flag
+#define MPL3115A2_BAR_IN_MSB  0x14    // Barometric input for Altitude calculation
+#define MPL3115A2_BAR_IN_LSB  0x15    // Barometric input for Altitude calculation
 #define MPL3115A2_P_TGT_LSB   0x16    // Atlitude mode: target LSB in meter
 #define MPL3115A2_P_TGT_MSB   0x17    // Atlitude mode: target MSB in meter
 
@@ -42,24 +39,36 @@
 #define MPL3115A2_CTRL_REG4   0x29    // enable interrupt
 
 
-/* Start height in meter, FH Technikum Wien see http://de.mygeoposition.com/ */
+// Start height in meter, FH Technikum Wien see http://de.mygeoposition.com/
 #define START_ALTITUDE 164
 
-/* Alarm height in meter */
+// Alarm height in meter
 #define ALARM_ALTITUDE 162
+#define ALARM_WINDOW_ALTITUDE 1  // in meter
+// Alarm temperature in °C
+#define ALARM_TEMPERATURE 20
 
-/* Alarm temperature in °C */
-#define ALARM_TEMPERATURE 27
-
-/* bit numbers of control register 1 */
+// bit numbers
+//control register 1
 #define BIT_STANDBY 0
 #define BIT_ONE_SHOT 1
 #define BIT_ALTIMETER  7
 
-#define BIT_SOURCE_TTH 4 /* temperature threshold reached */
-#define BIT_SOURCE_PTH 8 /* temperature threshold reached */
+//interupt status register
+#define BIT_SOURCE_TTH 4 // temperature threshold reached
+#define BIT_SOURCE_PTH 8 // Pressure threshold reached
+#define BIT_SOURCE_PTW 0x20 // Pressure threshold reached
 
-/* pressure/altittude raw value */
+// status register
+#define BIT_PRESSURE_DATA 4 // pressure data ready
+
+// control register 4
+#define BIT_INTERRUPT_TEMP 4  // enable temperature interrupt
+#define BIT_INTERRUPT_ALTITUDE 8 // enable altitude interrupt
+#define BIT_INTERRUPT_WINDOW_ALTITUDE 0x20 // enable altitude window interrupt
+
+
+// pressure/altittude raw value
 typedef struct ReadDataStruct
 {
 	uint8_t low_byte;

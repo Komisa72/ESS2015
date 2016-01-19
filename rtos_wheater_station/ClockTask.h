@@ -32,6 +32,7 @@ typedef struct TransferMessageStruct {
 } TransferMessageType;
 
 /* defines */
+// event ids
 #define MEASURE_THERMO_EVENT Event_Id_00
 #define MEASURE_ALTITUDE_EVENT Event_Id_00
 
@@ -48,6 +49,8 @@ typedef struct TransferMessageStruct {
 #define ID_ALTITUDE 'A'
 #define ID_PRESSURE 'P'
 
+/* minimum time between triggering a new measurement in 1/1000 s*/
+#define MINIMUM_SAMPLING_TIME  1000
 
 /* global */
 extern Event_Handle measureAltitudeEvent; // trigger measurement of altitude click
@@ -55,15 +58,16 @@ extern Event_Handle measureThermoEvent; // trigger measurement of thermo click
 extern Event_Handle transferEvent; // trigger transfer of read data
 extern Mailbox_Handle transferMailbox; // contains data to be transferred
 
-/** \fn setupClockTask
- *  \brief Setup clock task
+/**
+ * /fn setupClockTask
+ * /brief Setup clock task
  *
  *  Setup clock task
  *  Task has highest priority and receives 1kB of stack
  *
- *  \param time to wait for new measurement of temperature, pressure etc.
+ *  /param time to wait for new measurement of temperature, pressure etc.
  *
- *  \return always zero. In case of error the system halts.
+ *  /return always zero. In case of error the system halts.
  */
 int SetupClockTask(uint32_t wait_ticks);
 

@@ -58,6 +58,7 @@ static const float PRES_FRAC_B4 = 0.25;  // Fractional value for bit 4
 void ReadData(I2C_Handle i2c, ReadDataType* pread);
 float PressureRead(I2C_Handle i2c);
 void SwitchToStandby(I2C_Handle i2c);
+void SetOSR(I2C_Handle i2c, unsigned char value);
 
 /**
  * /fn AlarmFunction
@@ -67,12 +68,13 @@ void SwitchToStandby(I2C_Handle i2c);
 static void AlarmFunction(UArg arg) {
 	UInt eventId;
 
-	// can not write with i2c driver to clear interrupt of altitude click
 	GPIOIntClear(GPIO_PORTH_BASE, GPIO_PIN_2);
-	GPIOIntDisable(GPIO_PORTH_BASE, GPIO_INT_PIN_2);
-	Hwi_disableInterrupt(INT_GPIOH_TM4C129);
+	// can not write with i2c driver to clear interrupt of altitude click
+	// in interrupt context
+
 	// turn on led 1
 	GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);
+	// task read out the data
 	eventId = INTERRUPT_EVENT;
 	Event_post(interruptEvent, eventId);
 
@@ -88,7 +90,6 @@ static void AlarmFunction(UArg arg) {
  */
 void MPL3115A2_Write(I2C_Handle i2c, uint8_t address, uint8_t value) {
 	I2C_Transaction i2cTransaction;
-	bool flush = false;
 	uint8_t txBuffer[2];
 
 	i2cTransaction.slaveAddress = BOARD_ALTIUDE_CLICK;
@@ -102,8 +103,6 @@ void MPL3115A2_Write(I2C_Handle i2c, uint8_t address, uint8_t value) {
 
 	if (!I2C_transfer(i2c, &i2cTransaction)) {
 		System_printf("I2C Bus fault\n");
-	}
-	if (flush) {
 		System_flush();
 	}
 
@@ -137,6 +136,7 @@ uint8_t MPL3115A2_Read(I2C_Handle i2c, uint8_t address) {
 }
 
 /**
+ * /fn SwitchToStandby
  * /brief switches device to Standby mode for making changes to control registers.
  * /param i2c handle to open I2C connection.
  * /return void.
@@ -149,6 +149,7 @@ void SwitchToStandby(I2C_Handle i2c) {
 }
 
 /**
+ * /fn SwitchToAcitve
  * /brief Switch device to active mode.
  * /param i2c handle to open I2C connection.
  * /return void.
@@ -162,6 +163,7 @@ void SwitchToActive(I2C_Handle i2c)
 }
 
 /**
+ * /fn SwitchToAltimeter
  * /brief Switch device to altimeter mode.
  * /param i2c handle to open I2C connection.
  * /return void.
@@ -175,6 +177,7 @@ void SwitchToAltimeter(I2C_Handle i2c)
 }
 
 /**
+ * /fn SwitchToBarometer
  * /brief Switch device to barometer mode.
  * /param i2c handle to open I2C connection.
  * /return void.
@@ -188,6 +191,7 @@ void SwitchToBarometer(I2C_Handle i2c)
 }
 
 /**
+ * /fn OneShotMeasurement
  * /brief Trigger one shot measurement.
  * /param i2c handle to open I2C connection.
  * /return void.
@@ -203,6 +207,7 @@ void OneShotMeasurement(I2C_Handle i2c) {
 }
 
 /**
+ * /fn MPL3115A2Calibrate
  * /brief Calibrate the altimeter.
  * /param i2c handle to open I2C connection.
  * /return void.
@@ -213,16 +218,23 @@ void MPL3115A2Calibrate(I2C_Handle i2c) {
 	float sea_pressure;
 	int i;
 	int calculate;
+	int value = 0;
 
 	// Clear value
 	calibration_pressure = 0;
+	SetOSR(i2c,7);
 
 	// Calculate current pressure level
 	for (i = 0; i < 8; i++) {
-		MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, 0b00111011); // One shot mode, 128x oversampling (512 ms)
-		MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG1, 0b00111001); // Clear oversampling bit
+		OneShotMeasurement(i2c);
 		Task_sleep(550);      // Wait for sensor to read pressure
+		while ((value & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA)
+		{
+			value = MPL3115A2_Read(i2c, MPL3115A2_DR_STATUS);
+
+		}
 		calibration_pressure = calibration_pressure + PressureRead(i2c);
+		value = 0;
 	}
 	// Find average value of current pressure level readings
 	current_pressure = calibration_pressure / 8;
@@ -242,6 +254,7 @@ void MPL3115A2Calibrate(I2C_Handle i2c) {
 		MPL3115A2_Write(i2c, MPL3115A2_BAR_IN_LSB,
 				(uint8_t) ((calculate / 2) & 0xFF));
 	}
+	System_printf("Calibration finished.\n");
 }
 
 /**
@@ -265,36 +278,42 @@ void SetOSR(I2C_Handle i2c, unsigned char value) {
 }
 
 /**
+ * /fn MPL3115A2Init
  * /brief Common initialisation.
  * /param i2c handle to open I2C connection.
  * /return void.
  */
 void MPL3115A2Init(I2C_Handle i2c) {
-	SetOSR(i2c, 6);  // oversampling 256 ms
-	//MPL3115A2_Write(i2c, _PT_DATA_CFG, 0x07); // Enable Data Flags in PT_DATA_CFG
+	SetOSR(i2c, 7);  // oversampling 128/ 512ms
+	// enable pressure/temperature data ready flags/interrupt
+	MPL3115A2_Write(i2c, MPL3115A2_PT_DATA_CFG, 0x7);
 }
 
 /**
+ * /fn ReadData
  * /brief Read the pressure/altimeter value.
  * /param i2c handle to open I2C connection.
  * /param pread pointer where to store the read values.
  * /return void.
  */
 void ReadData(I2C_Handle i2c, ReadDataType* pread) {
-	uint8_t lowTemp;
+	uint8_t lowTemp;  // read temperature also to reset interrupt just in case
 	uint8_t highTemp;
 
 	pread->low_byte = MPL3115A2_Read(i2c, MPL3115A2_OUT_P_LSB);
 	pread->middle_byte = MPL3115A2_Read(i2c, MPL3115A2_OUT_P_CSB);
 	pread->high_byte = MPL3115A2_Read(i2c, MPL3115A2_OUT_P_MSB);
 
-	/* read teamperature */
-	highTemp = MPL3115A2_Read(i2c, MPL3115A2_OUT_T_MSB);  /* degrees */
+	// whole degrees are in register out_t_msb
+	highTemp = MPL3115A2_Read(i2c, MPL3115A2_OUT_T_MSB);
 	lowTemp = MPL3115A2_Read(i2c, MPL3115A2_OUT_T_LSB);
+
+	System_printf("X%d\n", highTemp);
 
 }
 
 /**
+ * /fn PressureRead
  * /brief Read barometric pressure value.
  * /param i2c handle to open I2C connection.
  * /return Pressure in pascal.
@@ -323,6 +342,7 @@ float PressureRead(I2C_Handle i2c) {
 }
 
 /**
+ * /AltitudeRead
  * /brief Read out the altitude value from registers in meter.
  * /param i2c handle to open I2C connection.
  * /return Altitude in meter.
@@ -355,32 +375,36 @@ float AltitudeRead(I2C_Handle i2c) {
 	return altitude_value = altitude_value + altitude_frac_value;
 }
 
+/**
+ * /fn InterruptFunction
+ * /brief Task runs when interrupt has occured.
+ *
+ * I2C can not be read in interrupt with the used I2C driver.
+ *
+ * /param arg0 not used.
+ * /param arg1 not used.
+ * /return void.
+ */
 void InterruptFunction(UArg arg0, UArg arg1) {
-	I2C_Params i2cParams;
 	uint8_t value;
-	ReadDataType read;
-	bool enableInterrupt = false;
 
 	while (true) {
 		// trigger measurement only if event is set
 		Event_pend(interruptEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT,
 				BIOS_WAIT_FOREVER);
-		value = MPL3115A2_Read(i2c, MPL3115A2_INT_SOURCE);
+		 value = MPL3115A2_Read(i2c, MPL3115A2_INT_SOURCE);
+
 		if ((value & BIT_SOURCE_TTH) == BIT_SOURCE_TTH)
 		{
-			// must read the temperature value to reset the interrupt
-			ReadData(i2c, &read);
-			MPL3115A2_Write(i2c, MPL3115A2_PT_DATA_CFG, 0x7);
+			System_printf("Temperature Alarm!\n");
+			System_flush();
 		}
 
-		if ((value & BIT_SOURCE_PTH) == BIT_SOURCE_PTH)
+		if ((value & (BIT_SOURCE_PTH | BIT_SOURCE_PTW)) > 0)
 		{
-			// must read the pressure/altitude value to reset the interrupt
-			ReadData(i2c, &read);
-			MPL3115A2_Write(i2c, MPL3115A2_PT_DATA_CFG, 0x7);
+			System_printf("Pressure Alarm!\n");
+			System_flush();
 		}
-		GPIOIntEnable(GPIO_PORTH_BASE, GPIO_INT_PIN_2);
-		Hwi_enableInterrupt(INT_GPIOH_TM4C129);
 	}
 
 }
@@ -401,7 +425,8 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	TransferMessageType barometer;
 	uint16_t targetAltitude;
 	int8_t temp;
-	uint8_t val;
+	uint8_t status = 0;
+	uint16_t windowAltitude;
 
 	altimeter.kind = TRANSFER_ALTITUDE;
 	barometer.kind = TRANSFER_PRESSURE;
@@ -438,36 +463,65 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	MPL3115A2_Write(i2c, MPL3115A2_P_TGT_LSB, targetAltitude & 0xFF);
 	MPL3115A2_Write(i2c, MPL3115A2_P_TGT_MSB, (targetAltitude >> 8));
 
-	MPL3115A2_Write(i2c, MPL3115A2_P_WND_LSB, 1);
-	MPL3115A2_Write(i2c, MPL3115A2_P_WND_MSB, 0);
-
-	MPL3115A2_Write(i2c, MPL3115A2_PT_DATA_CFG, 0x7);
+	// set altitude window size
+	windowAltitude = ALARM_WINDOW_ALTITUDE;
+	MPL3115A2_Write(i2c, MPL3115A2_P_WND_LSB, windowAltitude & 0xFF);
+	MPL3115A2_Write(i2c, MPL3115A2_P_WND_MSB, (windowAltitude >> 8));
 
 	temp = ALARM_TEMPERATURE;
 	MPL3115A2_Write(i2c, MPL3115A2_T_TGT, temp);
-	// enable temperature / altitude (pressure) threshold interrupt
-	MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG4, 0x0C);
+	// enable temperature threshold interrupt
+	MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG4, BIT_INTERRUPT_TEMP);
+
+	// INT2 of Altitude click
+	// pin int2 of altitude click goes to port pin2
+	GPIOPinTypeGPIOInput(GPIO_PORTH_BASE, GPIO_PIN_2);
+	GPIOIntTypeSet(GPIO_PORTH_BASE, GPIO_INT_PIN_2, GPIO_RISING_EDGE);
+	Hwi_enableInterrupt(INT_GPIOH_TM4C129);
+	GPIOIntEnable(GPIO_PORTH_BASE, GPIO_INT_PIN_2);
 
 	SwitchToActive(i2c);
 	while (true) {
 		// trigger measurement only if event is set
 		Event_pend(measureAltitudeEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT,
 				BIOS_WAIT_FOREVER);
+
+ 		SwitchToStandby(i2c);
+		MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG4, BIT_INTERRUPT_TEMP);
 		SwitchToBarometer(i2c);
-		OneShotMeasurement(i2c);
-		Task_sleep(550);
+		SwitchToActive(i2c);
+		while ((status & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA)
+		{
+			Task_sleep(100);
+			status = MPL3115A2_Read(i2c, MPL3115A2_DR_STATUS);
+		}
+		status = 0;
 		pressure = PressureRead(i2c);
 		barometer.value = pressure;
 
+		SwitchToStandby(i2c);
 		SwitchToAltimeter(i2c);
 		OneShotMeasurement(i2c);
-		Task_sleep(550);
+		// enable temperature / altitude (pressure) threshold interrupt
+		MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG4, BIT_INTERRUPT_TEMP |
+				BIT_INTERRUPT_ALTITUDE | BIT_INTERRUPT_WINDOW_ALTITUDE);
+
+		SwitchToActive(i2c);
+		while ((status & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA)
+		{
+			Task_sleep(100);
+			status = MPL3115A2_Read(i2c, MPL3115A2_DR_STATUS);
+		}
+		status = 0;
 		altitude = AltitudeRead(i2c);
 		altimeter.value = altitude;
 
 		/* implicitly posts TRANSFER_MESSAGE_EVENT to transferEvent */
 		Mailbox_post(transferMailbox, &altimeter, BIOS_WAIT_FOREVER);
 		Mailbox_post(transferMailbox, &barometer, BIOS_WAIT_FOREVER);
+
+		// do all the prints from ReadData
+		System_flush();
 
 	}
 
@@ -481,9 +535,10 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 }
 
 /**
- * Initialise altitude task and start it.
- * param boosterPack which booster pack is used for altitude click.
- * return always 0.
+ * /fn SetupAltiudeTask
+ * /brief Initialise altitude task and start it.
+ * /param boosterPack which booster pack is used for altitude click.
+ * /return always 0.
  */
 int SetupAltiudeTask(BoosterPackType boosterPack) {
 	Task_Params taskAltitudeParams;
@@ -502,6 +557,16 @@ int SetupAltiudeTask(BoosterPackType boosterPack) {
 	taskAltitudeParams.arg1 = NULL;
 	taskAltitude = Task_create((Task_FuncPtr) AltitudeFunction,
 			&taskAltitudeParams, &eb);
+	if (taskAltitude == NULL) {
+		System_abort("Task altitude create failed");
+	}
+
+
+	interruptEvent = Event_create(NULL, &eb);
+	if (interruptEvent == NULL) {
+		System_abort("Interrupt event create failed");
+	}
+
 
 	Error_init(&eb);
 	Task_Params_init(&taskInterruptParams);
@@ -511,14 +576,9 @@ int SetupAltiudeTask(BoosterPackType boosterPack) {
 	taskInterruptParams.arg1 = NULL;
 	taskInterrupt = Task_create((Task_FuncPtr) InterruptFunction,
 			&taskAltitudeParams, &eb);
-
-	interruptEvent = Event_create(NULL, &eb);
-	if (interruptEvent == NULL) {
-		System_abort("Interrupt event create failed");
+	if (taskInterrupt == NULL) {
+		System_abort("Task interrupt create failed.");
 	}
-
-	// pin int2 of altitude click goes to port pin2
-	GPIOPinTypeGPIOInput(GPIO_PORTH_BASE, GPIO_PIN_2);
 
 	Error_init(&eb);
 	Hwi_Params_init(&hwiParams);
@@ -530,11 +590,6 @@ int SetupAltiudeTask(BoosterPackType boosterPack) {
 	if (altitudeHwi == NULL) {
 		System_abort("Altitude click hardware interrupt create failed.");
 	}
-
-	/* INT2 of Altitude click */
-	GPIOIntTypeSet(GPIO_PORTH_BASE, GPIO_INT_PIN_2, GPIO_RISING_EDGE);
-	Hwi_enableInterrupt(INT_GPIOH_TM4C129);
-	GPIOIntEnable(GPIO_PORTH_BASE, GPIO_INT_PIN_2);
 
 	return 0;
 }

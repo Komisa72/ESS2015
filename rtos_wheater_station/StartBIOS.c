@@ -42,12 +42,16 @@
 
 #include "BoosterPack.h"
 
+// setup read sample rate with 1200 ms
+#define READ_SAMPLE_RATE    1200
+
 /* Forward declarations */
 extern int SetupAltiudeTask(BoosterPackType boosterPack);
 extern int SetupClockTask(uint32_t wait_ticks);
 extern int setup_Temp_Task(BoosterPackType boosterPack);
 
 /**
+ * /fn main
  * /brief The main entry point of the program.
  * /return Always 0.
  */
@@ -63,8 +67,7 @@ int main(void)
 
     Board_initI2C();
 
-    /*Initialize+start UART Task*/
-    (void) setup_UART_Task();
+    (void) SetupUartTask();
     System_printf("Created UART Task\n");
 
 #if USE_THERMO_CLICK
@@ -77,7 +80,7 @@ int main(void)
     System_printf("Created Altitude Task\n");
 #endif
 
-    (void) SetupClockTask(1200);
+    (void) SetupClockTask(READ_SAMPLE_RATE);
     System_printf("Created Clock Task\n");
 
     /* will only print to the console upon calling flush or exit */

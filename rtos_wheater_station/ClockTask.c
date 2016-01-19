@@ -17,8 +17,6 @@
 #include "BoosterPack.h"
 
 /* defines */
-/* minimum time between triggering a new measurement in 1/1000 s*/
-#define MINIMUM_SAMPLING_TIME  1000
 
 /* global */
 Event_Handle measureThermoEvent; // trigger measurement of thermo click
@@ -26,10 +24,11 @@ Event_Handle measureAltitudeEvent; // trigger measurement of altitude click
 Event_Handle transferEvent; // trigger transfer of read data
 Mailbox_Handle transferMailbox; // contains data to be transferred
 
-/** \fn ClockFunction
- *  \brief Task function called on every clock tick.
+/**
+ * /fn ClockFunction
+ * /brief Task function called on every clock tick.
  *
- *  \param arg0 not used.
+ * /param arg0 not used.
  */
 static void ClockFunction(UArg arg0)
 {
@@ -45,14 +44,15 @@ static void ClockFunction(UArg arg0)
 
 }
 
-/** \fn setupClockTask
- *  \brief Setup clock task
+/**
+ *  /fn setupClockTask
+ *  /brief Setup clock task
  *
  *  Task has highest priority and receives 1kB of stack
  *
- *  \param time to wait for new measurement of temperature, pressure etc.
+ *  /param time to wait for new measurement of temperature, pressure etc.
  *
- *  \return always zero. In case of error the system halts.
+ *  /return always zero. In case of error the system halts.
  */
 int SetupClockTask(uint32_t wait_ticks)
 {
