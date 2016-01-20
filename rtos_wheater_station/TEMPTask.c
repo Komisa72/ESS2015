@@ -103,7 +103,7 @@ void TempFxn(UArg arg0, UArg arg1) {
 		Mailbox_post(transferMailbox, &temperature, BIOS_WAIT_FOREVER);
 	}
 
-#ifdef DEBUG
+#ifndef DEBUG
 	/* Deinitialized I2C */
 	I2C_close(i2c);
 	System_printf("I2C closed!\n");

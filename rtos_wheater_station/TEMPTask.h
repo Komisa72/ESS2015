@@ -41,7 +41,7 @@ void TempFxn(UArg arg0, UArg arg1);
  *  \brief Setup Temp task
  *
  *  Setup Temp task
- *  Task has highest priority and receives 1kB of stack
+ *  Task has highest priority and receives 2kB of stack
  *
  *  \param boosterPack where thermo click is mounted.
  *
